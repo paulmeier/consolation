@@ -17,7 +17,7 @@ export function PartiqlEditor({ table }: { table: string }) {
           rows={5}
           defaultValue={`SELECT * FROM "${table}"`}
           spellCheck={false}
-          className="w-full rounded-lg border border-control-border bg-[#fbfbfa] p-3 font-mono text-[13px] focus:border-accent focus:ring-2 focus:ring-accent focus:outline-none"
+          className="w-full rounded-lg border border-control-border bg-editor p-3 font-mono text-[13px] focus:border-accent focus:ring-2 focus:ring-accent focus:outline-none"
         />
         <div className="flex items-center justify-end gap-3">
           {res?.ms !== undefined && <span className="text-sm text-muted">{res.ms} ms</span>}

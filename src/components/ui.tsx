@@ -9,12 +9,12 @@ type Variant = "primary" | "normal" | "link" | "icon" | "danger";
 
 const BTN: Record<Variant, string> = {
   primary:
-    "bg-primary text-[#f9f9f9] border border-primary hover:bg-primary-hover hover:border-primary-hover disabled:bg-line disabled:border-line disabled:text-faint",
+    "bg-primary text-on-primary border border-primary hover:bg-primary-hover hover:border-primary-hover disabled:bg-line disabled:border-line disabled:text-faint",
   normal:
-    "bg-control text-[#3e3b35] border border-control-border hover:bg-[#f2f2f1] hover:text-ink disabled:bg-surface disabled:text-faint disabled:border-line-strong",
+    "bg-control text-control-ink border border-control-border hover:bg-hover hover:text-ink disabled:bg-surface disabled:text-faint disabled:border-line-strong",
   danger:
     "bg-control text-danger border border-danger hover:bg-danger-soft disabled:bg-surface disabled:text-faint disabled:border-line-strong",
-  link: "text-[#3e3b35] border border-transparent hover:bg-[#f2f2f1]",
+  link: "text-control-ink border border-transparent hover:bg-hover",
   icon: "text-muted border border-transparent hover:text-ink px-1.5",
 };
 
@@ -137,10 +137,10 @@ export function StatusIndicator({ type, children }: { type: keyof typeof STATUS;
 
 export function Badge({ children, color = "grey" }: { children: ReactNode; color?: "grey" | "blue" | "green" | "red" }) {
   const c = {
-    grey: "bg-[#ebebf0] text-ink",
-    blue: "bg-accent text-white",
-    green: "bg-success text-white",
-    red: "bg-danger text-white",
+    grey: "bg-badge text-ink",
+    blue: "bg-accent text-on-strong",
+    green: "bg-success text-on-strong",
+    red: "bg-danger text-on-strong",
   }[color];
   return <span className={cx("inline-block rounded px-2 text-xs leading-5", c)}>{children}</span>;
 }
@@ -168,7 +168,7 @@ export function ErrorAlert({ title = "Request failed", message }: { title?: stri
 
 export function Alert({ children, type = "info" }: { children: ReactNode; type?: "info" | "warning" }) {
   return (
-    <div className={cx("flex gap-3 rounded-xl border-2 px-4 py-3", type === "info" ? "border-accent bg-info-soft" : "border-warning bg-[#fffce9]")}>
+    <div className={cx("flex gap-3 rounded-xl border-2 px-4 py-3", type === "info" ? "border-accent bg-info-soft" : "border-warning bg-warning-soft")}>
       <StatusIndicator type={type}>{""}</StatusIndicator>
       <div className="min-w-0">{children}</div>
     </div>
@@ -234,5 +234,5 @@ export function SpaceBetween({ children, size = "l" }: { children: ReactNode; si
 }
 
 export function Code({ children }: { children: ReactNode }) {
-  return <code className="rounded bg-[#f2f2f1] px-1 font-mono text-[13px]">{children}</code>;
+  return <code className="rounded bg-hover px-1 font-mono text-[13px]">{children}</code>;
 }

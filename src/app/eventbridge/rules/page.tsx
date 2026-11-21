@@ -47,7 +47,7 @@ export default async function RulesPage({ searchParams }: PageProps<"/eventbridg
               <select id="bus" name="bus" defaultValue={bus} className="rounded border border-control-border bg-surface px-3 py-[4px]">
                 {buses.map((b) => <option key={b}>{b}</option>)}
               </select>
-              <button className="rounded border border-control-border px-3 py-[3px] hover:bg-[#f2f2f1]">Select</button>
+              <button className="rounded border border-control-border px-3 py-[3px] hover:bg-hover">Select</button>
             </form>
             <TableFilter tableId="rules-table" placeholder="Search rules" />
           </div>

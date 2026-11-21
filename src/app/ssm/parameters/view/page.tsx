@@ -80,7 +80,7 @@ export default async function ParameterPage({ searchParams }: PageProps<"/ssm/pa
             />
           </Container>
           <Container header={<Header>Value</Header>}>
-            {secure ? <ShowDecrypted name={name} /> : <pre className="max-h-80 overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px] whitespace-pre-wrap break-all">{p.Value}</pre>}
+            {secure ? <ShowDecrypted name={name} /> : <pre className="max-h-80 overflow-auto rounded-lg bg-code p-3 font-mono text-[13px] whitespace-pre-wrap break-all">{p.Value}</pre>}
           </Container>
         </>
       )}

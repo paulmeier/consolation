@@ -72,8 +72,8 @@ export function ServiceShell({
           onClick={() => setNavPref((p) => !(p ?? (typeof window !== "undefined" && window.innerWidth >= 900)))}
           className={cx(
             "flex h-8 w-8 items-center justify-center rounded text-muted hover:text-ink",
-            navPref === true && "bg-accent text-white hover:text-white",
-            navPref === null && "min-[900px]:bg-accent min-[900px]:text-white min-[900px]:hover:text-white",
+            navPref === true && "bg-accent text-on-strong hover:text-on-strong",
+            navPref === null && "min-[900px]:bg-accent min-[900px]:text-on-strong min-[900px]:hover:text-on-strong",
           )}
         >
           <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">

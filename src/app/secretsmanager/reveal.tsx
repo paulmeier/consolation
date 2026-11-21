@@ -38,7 +38,7 @@ export function RevealSecret({ name, versionId, label = "Retrieve secret value" 
             </tbody>
           </table>
         ) : (
-          <pre className="max-h-80 overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px] whitespace-pre-wrap break-all">
+          <pre className="max-h-80 overflow-auto rounded-lg bg-code p-3 font-mono text-[13px] whitespace-pre-wrap break-all">
             {res.binary ? `(binary, base64) ${res.value}` : res.value}
           </pre>
         )}

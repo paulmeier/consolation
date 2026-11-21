@@ -40,7 +40,7 @@ export default async function RolePage({ params }: PageProps<"/iam/roles/[name]"
       </Container>
       <AttachedPolicies kind="role" principal={name} policies={pols.AttachedPolicies ?? []} />
       <Container header={<Header>Trust policy</Header>}>
-        <pre className="overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px]">{trust}</pre>
+        <pre className="overflow-auto rounded-lg bg-code p-3 font-mono text-[13px]">{trust}</pre>
       </Container>
     </Page>
   );

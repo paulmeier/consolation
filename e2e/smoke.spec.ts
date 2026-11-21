@@ -79,3 +79,20 @@ test("service search navigates with the keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/sqs\/queues/);
 });
+
+test("visual mode switches and persists", async ({ page }) => {
+  await go(page, "/settings");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-theme", "system");
+  await page.getByRole("radio", { name: "Dark", exact: true }).check();
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(bg).toBe("rgb(18, 17, 16)");
+  await go(page, "/s3/buckets");
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Visual mode" }).click();
+  await page.getByRole("radio", { name: "Light", exact: true }).check();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "light");
+});
