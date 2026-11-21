@@ -16,8 +16,10 @@ test("S3: bucket, folder, upload, preview, empty and delete", async ({ page }) =
   await page.getByRole("link", { name: "docs/" }).click();
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Upload" }).click();
-  await page.locator("dialog[open] input[type=file]").setInputFiles({ name: "hello.txt", mimeType: "text/plain", buffer: Buffer.from("hello from e2e\n") });
+  await page.locator("dialog[open] input[type=file]").first().setInputFiles({ name: "hello.txt", mimeType: "text/plain", buffer: Buffer.from("hello from e2e\n") });
   await page.locator("dialog[open] button.bg-primary", { hasText: "Upload" }).click();
+  await expect(page.locator("dialog[open] li", { hasText: "done" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByRole("link", { name: "hello.txt" }).click();
   await expect(page.locator("pre")).toContainText("hello from e2e");
 

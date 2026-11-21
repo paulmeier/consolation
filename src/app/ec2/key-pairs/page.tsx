@@ -35,7 +35,7 @@ async function KeyPairs() {
               <>
                 <LinkButton href="/ec2/key-pairs" aria-label="Refresh" className="px-2"><RefreshIcon /></LinkButton>
                 <ConfirmAction formId={FORM} action={deleteKeyPairs} label="Delete" title="Delete key pair" noun="key pair" confirmWord="Delete" />
-                <ModalButton label="Create key pair" title="Create key pair" variant="primary">
+                <ModalButton label="Create key pair" title="Create key pair" variant="primary" keepOpen>
                   <CreateKeyPair />
                 </ModalButton>
               </>

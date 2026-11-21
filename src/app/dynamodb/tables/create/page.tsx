@@ -38,8 +38,17 @@ export default function CreateTable() {
             </FormField>
           </div>
         </Container>
+        <Container header={<Header description="Optional. Add more indexes later from the Indexes tab.">Global secondary index</Header>}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField label="Index name"><Input name="gsiName" placeholder="byStatus" pattern="[A-Za-z0-9_.\-]{3,255}" /></FormField>
+            <FormField label="Index partition key">
+              <div className="flex gap-2"><Input name="gsiPk" placeholder="status" /><TypeSelect name="gsiPkType" /></div>
+            </FormField>
+          </div>
+        </Container>
         <Container header={<Header>Table settings</Header>}>
-          <p className="text-sm">Capacity mode: <b>On-demand</b>. Other settings use defaults.</p>
+          <p className="mb-3 text-sm">Capacity mode: <b>On-demand</b>.</p>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="protect" className="accent-accent" /> Turn on deletion protection</label>
         </Container>
         <div className="flex justify-end gap-2">
           <LinkButton href="/dynamodb/tables" variant="link">Cancel</LinkButton>

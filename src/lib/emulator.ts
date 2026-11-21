@@ -23,6 +23,14 @@ import { KinesisClient } from "@aws-sdk/client-kinesis";
 import { ECRClient } from "@aws-sdk/client-ecr";
 import { CloudWatchClient } from "@aws-sdk/client-cloudwatch";
 import { Route53Client } from "@aws-sdk/client-route-53";
+import { CloudFormationClient } from "@aws-sdk/client-cloudformation";
+import { APIGatewayClient } from "@aws-sdk/client-api-gateway";
+import { ApiGatewayV2Client } from "@aws-sdk/client-apigatewayv2";
+import { CognitoIdentityProviderClient } from "@aws-sdk/client-cognito-identity-provider";
+import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
+import { ECSClient } from "@aws-sdk/client-ecs";
+import { RDSClient } from "@aws-sdk/client-rds";
+import { DynamoDBStreamsClient } from "@aws-sdk/client-dynamodb-streams";
 
 /**
  * Connection settings for the local AWS Emulator.
@@ -113,13 +121,42 @@ function baseConfig() {
 }
 
 /**
+ * Compatibility shim: some emulator responses carry epoch timestamps with
+ * nanosecond precision (for example 1795288760.214074592 in ECS DescribeServices).
+ * The JS SDK parses numbers that would lose precision into a decimal object and
+ * then rejects them as timestamps, so trim such epochs to millisecond precision
+ * before the SDK deserializes the body. Real AWS responses are unaffected.
+ */
+const EPOCH_NS = /(:\s*)(\d{10})\.(\d{3})\d+/g;
+
+type Mw = { middlewareStack: { add: (mw: unknown, opts: { step: "deserialize"; priority: "low"; name: string }) => void } };
+
+function addEpochShim<T>(client: T): T {
+  (client as unknown as Mw).middlewareStack.add(
+    (next: (args: unknown) => Promise<{ response: { headers?: Record<string, string>; body?: unknown } }>) => async (args: unknown) => {
+      const out = await next(args);
+      const res = out.response;
+      const type = res.headers?.["content-type"] ?? "";
+      if (!/json/i.test(type) || !res.body || typeof (res.body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] !== "function") return out;
+      const chunks: Buffer[] = [];
+      for await (const c of res.body as AsyncIterable<Uint8Array>) chunks.push(Buffer.from(c));
+      const text = Buffer.concat(chunks).toString("utf8");
+      res.body = new Uint8Array(Buffer.from(text.replace(EPOCH_NS, "$1$2.$3"), "utf8"));
+      return out;
+    },
+    { step: "deserialize", priority: "low", name: "consolationEpochShim" },
+  );
+  return client;
+}
+
+/**
  * Returns SDK clients bound to the emulator. Awaiting this also marks the
  * calling route as request-time only, so emulator state is never prerendered.
  */
 export async function aws() {
   await connection();
   const cfg = baseConfig();
-  return {
+  const clients = {
     s3: new S3Client({ ...cfg, forcePathStyle: true }),
     dynamodb: new DynamoDBClient(cfg),
     lambda: new LambdaClient(cfg),
@@ -138,7 +175,18 @@ export async function aws() {
     ecr: new ECRClient(cfg),
     cloudwatch: new CloudWatchClient(cfg),
     route53: new Route53Client(cfg),
+    cfn: new CloudFormationClient(cfg),
+    apigw: new APIGatewayClient(cfg),
+    apigw2: new ApiGatewayV2Client(cfg),
+    cognito: new CognitoIdentityProviderClient(cfg),
+    cognitoIdentity: new CognitoIdentityClient(cfg),
+    ecs: new ECSClient(cfg),
+    rds: new RDSClient(cfg),
+    ddbStreams: new DynamoDBStreamsClient(cfg),
   };
+  // Apply the epoch-precision shim to every client (it only rewrites JSON bodies).
+  for (const c of Object.values(clients)) addEpochShim(c);
+  return clients;
 }
 
 export type Clients = Awaited<ReturnType<typeof aws>>;

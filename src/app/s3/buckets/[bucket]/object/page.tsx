@@ -1,8 +1,12 @@
-import { HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, GetObjectTaggingCommand, HeadObjectCommand, ListObjectVersionsCommand } from "@aws-sdk/client-s3";
 import { aws, errorMessage } from "@/lib/emulator";
 import { formatBytes, formatDate } from "@/lib/format";
 import { Page } from "@/components/page";
-import { Container, ErrorAlert, Header, KeyValue, buttonClass } from "@/components/ui";
+import { Table } from "@/components/table";
+import { ModalButton } from "@/components/client/modal";
+import { Badge, Container, EmptyState, ErrorAlert, FormField, Header, Input, KeyValue, Textarea, buttonClass } from "@/components/ui";
+import { copyObject, saveObjectTags } from "../../../actions";
+import { PresignForm } from "../../../presign";
 
 const PREVIEWABLE = /^(text\/|application\/(json|xml|javascript|x-yaml|yaml))/;
 
@@ -27,6 +31,16 @@ export default async function ObjectPage({ params, searchParams }: PageProps<"/s
     );
   }
   const download = `/api/s3/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+  const [tags, versions] = await Promise.all([
+    s3.send(new GetObjectTaggingCommand({ Bucket: bucket, Key: key })).then((r) => r.TagSet ?? []).catch(() => []),
+    s3.send(new ListObjectVersionsCommand({ Bucket: bucket, Prefix: key })).then((r) => (r.Versions ?? []).filter((v) => v.Key === key)).catch(() => []),
+  ]);
+  const hidden = (
+    <>
+      <input type="hidden" name="bucket" value={bucket} />
+      <input type="hidden" name="key" value={key} />
+    </>
+  );
   return (
     <Page>
       <Header
@@ -34,6 +48,18 @@ export default async function ObjectPage({ params, searchParams }: PageProps<"/s
         info
         actions={
           <>
+            <ModalButton label="Copy or move" title="Copy or move object">
+              <form action={copyObject} className="space-y-4">
+                {hidden}
+                <FormField label="Destination bucket"><Input name="destBucket" defaultValue={bucket} required /></FormField>
+                <FormField label="Destination key" description="Use a new key in the same bucket to rename."><Input name="destKey" defaultValue={key} required /></FormField>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="move" className="accent-accent" /> Move (delete the source after copying)</label>
+                <div className="flex justify-end"><button className={buttonClass("primary")}>Copy</button></div>
+              </form>
+            </ModalButton>
+            <ModalButton label="Share with a presigned URL" title="Share with a presigned URL" keepOpen>
+              <PresignForm bucket={bucket} objectKey={key} />
+            </ModalButton>
             <a href={download} className={buttonClass("normal")}>Download</a>
             <a href={`${download}&inline=1`} target="_blank" rel="noreferrer" className={buttonClass("primary")}>Open</a>
           </>
@@ -56,6 +82,27 @@ export default async function ObjectPage({ params, searchParams }: PageProps<"/s
           ]}
         />
       </Container>
+      <Container header={<Header description="One Key=Value per line. Empty and save to remove all tags.">Tags ({tags.length})</Header>}>
+        <form action={saveObjectTags} className="space-y-3">
+          {hidden}
+          <Textarea name="tags" rows={3} defaultValue={tags.map((t) => `${t.Key}=${t.Value}`).join("\n")} placeholder="classification=internal" />
+          <div className="flex justify-end"><button className={buttonClass("normal")}>Save tags</button></div>
+        </form>
+      </Container>
+      {versions.length > 1 && (
+        <Container noPadding header={<Header counter={versions.length}>Versions</Header>}>
+          <Table
+            rows={versions}
+            rowKey={(v) => v.VersionId ?? "null"}
+            columns={[
+              { header: "Version ID", cell: (v) => <span className="font-mono text-xs">{v.VersionId}{v.IsLatest && <Badge color="blue">Current</Badge>}</span> },
+              { header: "Last modified", cell: (v) => formatDate(v.LastModified) },
+              { header: "Size", cell: (v) => formatBytes(v.Size), sortValue: (v) => v.Size ?? 0 },
+            ]}
+            empty={<EmptyState title="No versions" />}
+          />
+        </Container>
+      )}
       {preview !== null && (
         <Container header={<Header>Preview</Header>}>
           <pre className="max-h-[480px] overflow-auto rounded-lg bg-[#f6f6f5] p-4 font-mono text-[13px] whitespace-pre-wrap">{preview}</pre>

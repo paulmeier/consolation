@@ -61,12 +61,15 @@ export function ModalButton({
   children,
   variant = "normal",
   size,
+  keepOpen,
 }: {
   label: ReactNode;
   title: ReactNode;
   children: ReactNode;
   variant?: "primary" | "normal";
   size?: "md" | "lg";
+  /** Keep the dialog open after its form submits (for forms that show a result inline). */
+  keepOpen?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -75,7 +78,7 @@ export function ModalButton({
         {label}
       </button>
       <ModalFrame open={open} onClose={() => setOpen(false)} title={title} size={size}>
-        <div onSubmitCapture={() => setTimeout(() => setOpen(false), 0)}>{children}</div>
+        <div onSubmitCapture={keepOpen ? undefined : () => setTimeout(() => setOpen(false), 0)}>{children}</div>
       </ModalFrame>
     </>
   );
