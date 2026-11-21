@@ -2,21 +2,27 @@ import { Suspense } from "react";
 import { EMULATOR_DIR, EMULATOR_ENDPOINT, EMULATOR_PORT, REGION } from "@/lib/emulator";
 import { checkHealth } from "@/lib/health";
 import { Code, Container, Header, KeyValue, StatusIndicator } from "@/components/ui";
+import { ThemeChooser } from "@/components/client/theme";
+import { getTheme } from "@/lib/theme";
 
-export const metadata = { title: "Emulator settings" };
+export const metadata = { title: "Settings" };
 
 async function Health() {
   const h = await checkHealth();
   return h.ok ? <StatusIndicator type="success">Healthy ({h.detail})</StatusIndicator> : <StatusIndicator type="error">{h.detail}</StatusIndicator>;
 }
 
-export default function Settings() {
+export default async function Settings() {
+  const theme = await getTheme();
   return (
     <main className="mx-auto max-w-[1080px] px-4 py-6 md:px-10">
       <div className="flex flex-col gap-6">
-        <Header variant="h1" description="Consolation reads these from environment variables when the Next.js server starts.">
-          Emulator settings
+        <Header variant="h1" description="Appearance is saved in this browser. Emulator settings are read from environment variables when the Next.js server starts.">
+          Settings
         </Header>
+        <Container header={<Header>Appearance</Header>}>
+          <ThemeChooser initial={theme} />
+        </Container>
         <Container header={<Header>Connection</Header>}>
           <KeyValue
             columns={2}

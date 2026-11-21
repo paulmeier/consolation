@@ -35,7 +35,7 @@ export function AslGraph({ definition, highlight }: { definition: string; highli
   Object.keys(states).forEach((n) => !order.includes(n) && order.push(n));
   return (
     <ol className="flex flex-col items-center gap-0 py-2">
-      <li className="rounded-full bg-[#f2f2f1] px-3 py-1 text-xs text-muted">Start</li>
+      <li className="rounded-full bg-hover px-3 py-1 text-xs text-muted">Start</li>
       {order.map((n) => {
         const s = states[n];
         const edges = [
@@ -57,7 +57,7 @@ export function AslGraph({ definition, highlight }: { definition: string; highli
             {(s.End || s.Type === "Succeed" || s.Type === "Fail") && (
               <>
                 <span className="h-5 w-px bg-line-strong" />
-                <span className="rounded-full bg-[#f2f2f1] px-3 py-1 text-xs text-muted">End</span>
+                <span className="rounded-full bg-hover px-3 py-1 text-xs text-muted">End</span>
               </>
             )}
           </li>

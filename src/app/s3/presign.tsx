@@ -17,7 +17,7 @@ export function PresignForm({ bucket, objectKey }: { bucket: string; objectKey: 
       {res?.error && <p className="text-sm text-danger">{res.error}</p>}
       {res?.url && (
         <div className="space-y-1">
-          <textarea readOnly rows={4} value={res.url} className="w-full rounded border border-line bg-[#f6f6f5] p-2 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
+          <textarea readOnly rows={4} value={res.url} className="w-full rounded border border-line bg-code p-2 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
           <p className="text-xs text-muted">Expires {res.expires}</p>
         </div>
       )}

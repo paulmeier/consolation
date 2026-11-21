@@ -87,8 +87,8 @@ export default async function ExecutionPage({ params }: PageProps<"/stepfunction
         />
       </Container>
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <Container header={<Header>Input</Header>}><pre className="max-h-72 overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px]">{pretty(x.input)}</pre></Container>
-        <Container header={<Header>Output</Header>}><pre className="max-h-72 overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px]">{pretty(x.output)}</pre></Container>
+        <Container header={<Header>Input</Header>}><pre className="max-h-72 overflow-auto rounded-lg bg-code p-3 font-mono text-[13px]">{pretty(x.input)}</pre></Container>
+        <Container header={<Header>Output</Header>}><pre className="max-h-72 overflow-auto rounded-lg bg-code p-3 font-mono text-[13px]">{pretty(x.output)}</pre></Container>
       </div>
       {sm?.definition && (
         <Container header={<Header description="Green: completed, blue: entered, red: failed.">Graph view</Header>}>

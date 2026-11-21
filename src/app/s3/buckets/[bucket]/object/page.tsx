@@ -105,7 +105,7 @@ export default async function ObjectPage({ params, searchParams }: PageProps<"/s
       )}
       {preview !== null && (
         <Container header={<Header>Preview</Header>}>
-          <pre className="max-h-[480px] overflow-auto rounded-lg bg-[#f6f6f5] p-4 font-mono text-[13px] whitespace-pre-wrap">{preview}</pre>
+          <pre className="max-h-[480px] overflow-auto rounded-lg bg-code p-4 font-mono text-[13px] whitespace-pre-wrap">{preview}</pre>
         </Container>
       )}
     </Page>

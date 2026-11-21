@@ -139,8 +139,8 @@ async function CodeTab({ name, location, runtime, codeSize }: { name: string; lo
           <input type="hidden" name="name" value={name} />
           <input type="hidden" name="file" value={file} />
           <div className="overflow-hidden rounded-lg border border-line">
-            <div className="border-b border-line bg-[#f6f6f5] px-3 py-1.5 font-mono text-xs text-muted">{file}</div>
-            <textarea name="source" defaultValue={source} rows={20} spellCheck={false} className="block w-full bg-[#fbfbfa] p-3 font-mono text-[13px] leading-5 focus:outline-none" />
+            <div className="border-b border-line bg-code px-3 py-1.5 font-mono text-xs text-muted">{file}</div>
+            <textarea name="source" defaultValue={source} rows={20} spellCheck={false} className="block w-full bg-editor p-3 font-mono text-[13px] leading-5 focus:outline-none" />
           </div>
           <div className="flex justify-end"><button className={buttonClass("primary")}>Deploy</button></div>
         </form>
@@ -166,7 +166,7 @@ async function MonitorTab({ name }: { name: string }) {
     <>
       <Container header={<Header description={<>Log group <Link className="underline-link font-mono" href={groupHref}>{group}</Link></>} actions={<LinkButton href={groupHref}>View CloudWatch logs</LinkButton>}>Recent invocations</Header>}>
         {error ? <p className="text-sm text-muted">No logs yet. Invoke the function to create its log group. ({error})</p> : (
-          <pre className="max-h-96 overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-xs whitespace-pre-wrap">{events.map((e) => `${e.t ? new Date(e.t).toISOString() : ""}  ${e.m ?? ""}`).join("\n") || "No events in the latest log stream."}</pre>
+          <pre className="max-h-96 overflow-auto rounded-lg bg-code p-3 font-mono text-xs whitespace-pre-wrap">{events.map((e) => `${e.t ? new Date(e.t).toISOString() : ""}  ${e.m ?? ""}`).join("\n") || "No events in the latest log stream."}</pre>
         )}
       </Container>
       {streams.length > 0 && (

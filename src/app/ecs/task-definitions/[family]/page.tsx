@@ -42,7 +42,7 @@ export default async function FamilyPage({ params, searchParams }: PageProps<"/e
       </Container>
       {json && (
         <Container header={<Header>JSON</Header>}>
-          <pre className="max-h-[560px] overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px]">{json}</pre>
+          <pre className="max-h-[560px] overflow-auto rounded-lg bg-code p-3 font-mono text-[13px]">{json}</pre>
         </Container>
       )}
     </Page>

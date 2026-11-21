@@ -54,7 +54,7 @@ export default async function QueuePage({ params, searchParams }: PageProps<"/sq
         </Container>
       ) : (
         <Container header={<Header>Access policy</Header>}>
-          <pre className="max-h-80 overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px] whitespace-pre-wrap">{a.Policy ? JSON.stringify(JSON.parse(a.Policy), null, 2) : "No access policy."}</pre>
+          <pre className="max-h-80 overflow-auto rounded-lg bg-code p-3 font-mono text-[13px] whitespace-pre-wrap">{a.Policy ? JSON.stringify(JSON.parse(a.Policy), null, 2) : "No access policy."}</pre>
         </Container>
       )}
     </Page>

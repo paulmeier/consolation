@@ -2,42 +2,60 @@
 
 /*
  * Design tokens measured from the live AWS console (Cloudscape, 2026 refresh).
+ * Each colour is light-dark(light, dark): the root's color-scheme picks one, set
+ * by html[data-theme] (light | dark | system → follows the browser).
  */
 @theme {
   --font-sans: "Ember Modern Text UI", "Amazon Ember", var(--font-roboto), Roboto, Arial, sans-serif;
   --font-mono: Monaco, Menlo, Consolas, "Courier Prime", Courier, monospace;
 
-  --color-layout: #f6f6f5;
-  --color-surface: #ffffff;
-  --color-control: #f9f9f9;
-  --color-ink: #201e1b;
-  --color-heading: #161512;
-  --color-muted: #4c4942;
-  --color-subtle: #6f6b63;
-  --color-faint: #949088;
-  --color-line: #e3e1de;
-  --color-line-soft: #eeedeb;
-  --color-line-strong: #bab7b0;
-  --color-control-border: #949088;
-  --color-accent: #295eff;
-  --color-accent-soft: #eef3ff;
-  --color-primary: #262420;
-  --color-primary-hover: #000000;
-  --color-danger: #d13211;
-  --color-danger-soft: #fff5f3;
-  --color-success: #00802f;
-  --color-success-soft: #f2fcf3;
-  --color-warning: #8d6605;
-  --color-info-soft: #f0f4ff;
-  --color-topnav: #ffffff;
+  --color-layout: light-dark(#f6f6f5, #121110);
+  --color-surface: light-dark(#ffffff, #1c1b19);
+  --color-control: light-dark(#f9f9f9, #23221f);
+  --color-ink: light-dark(#201e1b, #e8e6e2);
+  --color-heading: light-dark(#161512, #f5f4f1);
+  --color-muted: light-dark(#4c4942, #bdb9b1);
+  --color-subtle: light-dark(#6f6b63, #a39f97);
+  --color-faint: light-dark(#949088, #77736b);
+  --color-line: light-dark(#e3e1de, #363430);
+  --color-line-soft: light-dark(#eeedeb, #2a2926);
+  --color-line-strong: light-dark(#bab7b0, #55524c);
+  --color-control-border: light-dark(#949088, #7c7870);
+  --color-control-ink: light-dark(#3e3b35, #dcd9d3);
+  --color-hover: light-dark(#f2f2f1, #2c2b28);
+  --color-code: light-dark(#f6f6f5, #151412);
+  --color-editor: light-dark(#fbfbfa, #171614);
+  --color-stripe: light-dark(#fafaf9, #201f1c);
+  --color-badge: light-dark(#ebebf0, #34332f);
+  --color-accent: light-dark(#295eff, #7d9fff);
+  --color-accent-soft: light-dark(#eef3ff, #1b2338);
+  --color-primary: light-dark(#262420, #f2f1ee);
+  --color-primary-hover: light-dark(#000000, #ffffff);
+  --color-on-primary: light-dark(#f9f9f9, #161512);
+  --color-on-strong: light-dark(#ffffff, #121110);
+  --color-danger: light-dark(#d13211, #ff7a5c);
+  --color-danger-soft: light-dark(#fff5f3, #34180f);
+  --color-success: light-dark(#00802f, #4fd17d);
+  --color-success-soft: light-dark(#f2fcf3, #10281a);
+  --color-warning: light-dark(#8d6605, #f0c14b);
+  --color-warning-soft: light-dark(#fffce9, #2e2710);
+  --color-info-soft: light-dark(#f0f4ff, #18203a);
+  --color-topnav: light-dark(#ffffff, #1c1b19);
 
-  --shadow-card: 0 1px 1px 0 rgba(0, 7, 22, 0.05), 0 0 0 1px #e3e1de;
-  --shadow-pop: 0 4px 20px 1px rgba(0, 7, 22, 0.1), 0 0 0 1px #e3e1de;
+  --shadow-card: 0 1px 1px 0 rgba(0, 7, 22, 0.05), 0 0 0 1px var(--color-line);
+  --shadow-pop: 0 4px 20px 1px light-dark(rgba(0, 7, 22, 0.1), rgba(0, 0, 0, 0.5)), 0 0 0 1px var(--color-line);
 }
 
 @layer base {
-  :root {
+  :root,
+  :root[data-theme="system"] {
+    color-scheme: light dark;
+  }
+  :root[data-theme="light"] {
     color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
   }
 
   html,
@@ -63,12 +81,12 @@
 }
 .sel-scope:has([data-select]:checked) .needs-selection {
   pointer-events: auto;
-  color: #3e3b35;
+  color: var(--color-control-ink);
   border-color: var(--color-control-border);
   background: var(--color-control);
 }
 .sel-scope:has([data-select]:checked) .needs-selection:hover {
-  background: #f2f2f1;
+  background: var(--color-hover);
   color: var(--color-ink);
 }
 .sel-scope:has([data-select]:checked) .needs-selection.needs-selection-danger {
@@ -104,7 +122,7 @@ table[data-wrap="false"] td {
   white-space: nowrap;
 }
 tr[data-stripe="true"] > td {
-  background: #fafaf9;
+  background: var(--color-stripe);
 }
 th[data-sortable] {
   cursor: pointer;

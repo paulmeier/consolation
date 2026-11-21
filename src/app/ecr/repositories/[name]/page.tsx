@@ -55,7 +55,7 @@ export default async function RepoPage({ params, searchParams }: PageProps<"/ecr
       </Header>
       <Container header={<Header>Push commands</Header>}>
         <p className="mb-2 text-sm text-muted">The emulator serves the ECR API; whether it also accepts <code className="font-mono">docker push</code> depends on the build. Standard commands for reference:</p>
-        <pre className="overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px]">{`aws ecr get-login-password | docker login --username AWS --password-stdin ${host}
+        <pre className="overflow-auto rounded-lg bg-code p-3 font-mono text-[13px]">{`aws ecr get-login-password | docker login --username AWS --password-stdin ${host}
 docker tag my-image:latest ${repo.repositoryUri}:latest
 docker push ${repo.repositoryUri}:latest`}</pre>
       </Container>

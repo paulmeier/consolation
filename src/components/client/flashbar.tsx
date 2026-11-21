@@ -13,7 +13,7 @@ export function Flashbar({ initial }: { initial: Flash | null }) {
   if (!flash) return null;
   const bg = { success: "bg-success", error: "bg-danger", info: "bg-accent" }[flash.type];
   return (
-    <div className={`mb-4 flex items-start gap-3 rounded-xl px-4 py-3 text-white ${bg}`} role="status">
+    <div className={`mb-4 flex items-start gap-3 rounded-xl px-4 py-3 text-on-strong ${bg}`} role="status">
       <svg viewBox="0 0 20 20" className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="10" cy="10" r="8" />
         {flash.type === "success" ? <path d="M6 10.5l3 3 5-6" /> : <path d="M10 6v5M10 13.5v.5" />}

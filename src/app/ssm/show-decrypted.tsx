@@ -6,7 +6,7 @@ import { buttonClass } from "@/components/ui";
 
 export function ShowDecrypted({ name }: { name: string }) {
   const [res, action, pending] = useActionState<ValueResult, FormData>(showDecrypted, null);
-  if (res?.value !== undefined) return <pre className="max-h-80 overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px] whitespace-pre-wrap break-all">{res.value}</pre>;
+  if (res?.value !== undefined) return <pre className="max-h-80 overflow-auto rounded-lg bg-code p-3 font-mono text-[13px] whitespace-pre-wrap break-all">{res.value}</pre>;
   return (
     <form action={action} className="flex items-center gap-3">
       <input type="hidden" name="name" value={name} />

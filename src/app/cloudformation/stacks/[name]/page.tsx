@@ -141,7 +141,7 @@ export default async function StackPage({ params, searchParams }: PageProps<"/cl
       )}
       {tab === "template" && (
         <Container header={<Header>Template</Header>}>
-          <pre className="max-h-[640px] overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px]">{templateText}</pre>
+          <pre className="max-h-[640px] overflow-auto rounded-lg bg-code p-3 font-mono text-[13px]">{templateText}</pre>
         </Container>
       )}
       {tab === "changesets" && (

@@ -70,6 +70,8 @@ The Playwright suite in `e2e/` needs a running emulator. It creates uniquely nam
 | `EMULATOR_REGION` | `us-east-1` | Region used for requests |
 | `CONSOLATION_ALLOW_NON_LOOPBACK` | unset | Set to `1` to allow a non-loopback endpoint |
 
+Visual mode (Light, Dark or Browser default) is picked from the moon/sun button in the top navigation or on **Settings**, and saved in the `consolation_theme` cookie so pages render in that mode without a flash. Colours are design tokens in `src/app/globals.css`, each a CSS `light-dark()` pair; use the token utilities (`bg-surface`, `text-muted`, `bg-hover`, `bg-code`…) rather than hex values so new UI follows the mode.
+
 ## Emulator notes
 
 - Some emulator responses carry epoch timestamps with nanosecond precision, which the AWS SDK for JavaScript rejects. `src/lib/emulator.ts` trims them to milliseconds before deserialization.

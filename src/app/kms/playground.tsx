@@ -63,7 +63,7 @@ function OpForm({ keyId, op, algs }: { keyId: string; op: Op; algs: string[] }) 
       {res?.output !== undefined && (
         <div>
           {res.detail && <p className="mb-1 text-sm text-muted">{res.detail}</p>}
-          <pre className="max-h-60 overflow-auto rounded-lg bg-[#f6f6f5] p-3 font-mono text-[13px] whitespace-pre-wrap break-all">{res.output}</pre>
+          <pre className="max-h-60 overflow-auto rounded-lg bg-code p-3 font-mono text-[13px] whitespace-pre-wrap break-all">{res.output}</pre>
         </div>
       )}
     </form>

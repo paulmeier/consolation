@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES, SERVICES } from "@/lib/services";
 import { ServiceIcon } from "../service-icon";
+import type { Theme } from "@/lib/theme";
 import { cx } from "../ui";
+import { ThemeChooser, ThemeIcon, useTheme } from "./theme";
 
 function useClickAway(onAway: () => void) {
   const ref = useRef<HTMLDivElement>(null);
@@ -26,18 +28,19 @@ function IconButton({ label, children, onClick, active }: { label: string; child
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={cx("flex h-9 w-9 items-center justify-center rounded text-muted hover:bg-[#f2f2f1] hover:text-ink", active && "bg-[#f2f2f1] text-ink")}
+      className={cx("flex h-9 w-9 items-center justify-center rounded text-muted hover:bg-hover hover:text-ink", active && "bg-hover text-ink")}
     >
       {children}
     </button>
   );
 }
 
-export function TopNav({ region, regionName, account, healthy }: { region: string; regionName: string; account: string; healthy: boolean }) {
+export function TopNav({ region, regionName, account, healthy, theme: initialTheme }: { region: string; regionName: string; account: string; healthy: boolean; theme: Theme }) {
   const router = useRouter();
+  const [theme] = useTheme(initialTheme);
   const [q, setQ] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [menu, setMenu] = useState<null | "services" | "account" | "region" | "notifications">(null);
+  const [menu, setMenu] = useState<null | "services" | "account" | "region" | "notifications" | "theme">(null);
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useClickAway(() => setSearchOpen(false));
@@ -72,7 +75,7 @@ export function TopNav({ region, regionName, account, healthy }: { region: strin
     <header className="sticky top-0 z-40 border-b border-line bg-topnav">
       <div className="flex h-[52px] items-center gap-2 px-4" ref={menuRef}>
         <Link href="/" className="mr-1 flex items-center gap-2 pr-2" aria-label="Console Home">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-sm font-black text-[#ff9900]">c</span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#262420] text-sm font-black text-[#ff9900]">c</span>
           <span className="hidden text-[15px] font-bold tracking-tight text-heading sm:inline">consolation</span>
         </Link>
         <span className="h-6 w-px bg-line" />
@@ -91,7 +94,7 @@ export function TopNav({ region, regionName, account, healthy }: { region: strin
                     <ul>
                       {SERVICES.filter((s) => s.category === cat).map((s) => (
                         <li key={s.id}>
-                          <button type="button" onClick={() => go(s.href)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-[#f2f2f1]">
+                          <button type="button" onClick={() => go(s.href)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-hover">
                             <ServiceIcon service={s} size={20} />
                             <span>{s.shortName}</span>
                             {!s.implemented && <span className="ml-auto text-xs text-faint">preview</span>}
@@ -150,7 +153,7 @@ export function TopNav({ region, regionName, account, healthy }: { region: strin
                   type="button"
                   onMouseEnter={() => setCursor(i)}
                   onClick={() => go(s.href)}
-                  className={cx("flex w-full items-start gap-3 px-4 py-2 text-left", i === cursor && "bg-[#f2f2f1]")}
+                  className={cx("flex w-full items-start gap-3 px-4 py-2 text-left", i === cursor && "bg-hover")}
                 >
                   <ServiceIcon service={s} size={28} />
                   <span className="min-w-0">
@@ -169,7 +172,17 @@ export function TopNav({ region, regionName, account, healthy }: { region: strin
               <path d="M4 11V7a4 4 0 0 1 8 0v4l1 1.5H3L4 11zM6.5 14h3" />
             </svg>
           </IconButton>
-          <a href="https://docs.aws.amazon.com/" target="_blank" rel="noreferrer" aria-label="Help" className="flex h-9 w-9 items-center justify-center rounded text-muted hover:bg-[#f2f2f1] hover:text-ink">
+          <div className="relative">
+            <IconButton label="Visual mode" active={menu === "theme"} onClick={() => setMenu(menu === "theme" ? null : "theme")}>
+              <ThemeIcon theme={theme} />
+            </IconButton>
+            {menu === "theme" && (
+              <div className="absolute top-11 right-0 z-50 w-56 rounded-xl bg-surface p-3 text-sm shadow-pop">
+                <ThemeChooser initial={initialTheme} compact />
+              </div>
+            )}
+          </div>
+          <a href="https://docs.aws.amazon.com/" target="_blank" rel="noreferrer" aria-label="Help" className="flex h-9 w-9 items-center justify-center rounded text-muted hover:bg-hover hover:text-ink">
             <svg viewBox="0 0 16 16" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.6">
               <circle cx="8" cy="8" r="6.5" />
               <path d="M6.2 6.2a1.9 1.9 0 1 1 2.4 1.8c-.4.1-.6.5-.6.9v.6M8 11.5v.3" />
@@ -177,7 +190,7 @@ export function TopNav({ region, regionName, account, healthy }: { region: strin
           </a>
           <span className="mx-1 hidden h-6 w-px bg-line md:block" />
           <div className="relative hidden md:block">
-            <button type="button" onClick={() => setMenu(menu === "region" ? null : "region")} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs font-bold text-ink hover:bg-[#f2f2f1]">
+            <button type="button" onClick={() => setMenu(menu === "region" ? null : "region")} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs font-bold text-ink hover:bg-hover">
               {regionName}
               <svg viewBox="0 0 16 16" className="h-3 w-3" fill="currentColor"><path d="M4 6h8l-4 5z" /></svg>
             </button>
@@ -192,7 +205,7 @@ export function TopNav({ region, regionName, account, healthy }: { region: strin
             )}
           </div>
           <div className="relative">
-            <button type="button" onClick={() => setMenu(menu === "account" ? null : "account")} className="flex flex-col items-end rounded px-2 py-0.5 text-right leading-4 hover:bg-[#f2f2f1]">
+            <button type="button" onClick={() => setMenu(menu === "account" ? null : "account")} className="flex flex-col items-end rounded px-2 py-0.5 text-right leading-4 hover:bg-hover">
               <span className="flex items-center gap-1 text-xs font-bold text-ink">
                 <span className={cx("inline-block h-2 w-2 rounded-full", healthy ? "bg-success" : "bg-danger")} />
                 Emulator ({account})
