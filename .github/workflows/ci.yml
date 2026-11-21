@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, type-check and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+
+  e2e:
+    name: End-to-end tests against AWS Emulator
+    runs-on: ubuntu-latest
+    needs: check
+    env:
+      EMULATOR_PORT: "9297"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Build AWS Emulator image (latest package, no cache)
+        run: docker build --pull --no-cache -t aws-emulator docker/aws-emulator
+
+      - name: Start AWS Emulator
+        run: |
+          # Create the run-file folder first so Docker does not create it as root.
+          mkdir -p "$HOME/.aws/emulator/$EMULATOR_PORT"
+          docker network create aws-emulator
+          docker run -d --rm --name aws-emulator \
+            --network aws-emulator \
+            --user "$(id -u):$(id -g)" \
+            --cap-drop ALL --security-opt no-new-privileges --read-only \
+            -e EMULATOR_TELEMETRY=off \
+            -p "127.0.0.1:$EMULATOR_PORT:$EMULATOR_PORT" \
+            -v "$HOME/.aws/emulator/$EMULATOR_PORT:/home/emulator/.aws/emulator/$EMULATOR_PORT" \
+            aws-emulator --idle-timeout 3600
+          for _ in $(seq 60); do
+            if curl -sf --cacert "$HOME/.aws/emulator/$EMULATOR_PORT/ca.pem" "https://127.0.0.1:$EMULATOR_PORT/__admin/health"; then
+              echo " emulator ready"; exit 0
+            fi
+            sleep 1
+          done
+          docker logs aws-emulator
+          exit 1
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Stop AWS Emulator
+        if: always()
+        run: docker stop aws-emulator || true

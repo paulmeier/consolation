@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import "./globals.css";
 import { TopNav } from "@/components/client/top-nav";
+import { HydrationMarker } from "@/components/client/hydration-marker";
 import { EMULATOR_ACCOUNT, EMULATOR_ENDPOINT, REGION } from "@/lib/emulator";
 import { regionLabel } from "@/lib/format";
 import { checkHealth } from "@/lib/health";
@@ -18,6 +19,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${roboto.variable} antialiased`}>
       <body className="min-h-screen">
+        <HydrationMarker />
         <TopNav region={REGION} regionName={regionLabel(REGION)} account={EMULATOR_ACCOUNT} healthy={health.ok} />
         <div className="pb-9">{children}</div>
         <footer className="fixed inset-x-0 bottom-0 z-40 flex h-9 items-center gap-5 border-t border-line bg-surface px-4 text-xs font-medium text-muted">

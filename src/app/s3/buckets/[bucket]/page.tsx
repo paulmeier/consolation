@@ -141,7 +141,7 @@ async function Objects({ bucket, prefix }: { bucket: string; prefix: string }) {
           },
           { header: "Type", cell: (r) => (r.kind === "folder" ? "Folder" : (r.key.split(".").pop() ?? "-")) },
           { header: "Last modified", cell: (r) => (r.kind === "object" ? formatDate(r.obj.LastModified) : "-") },
-          { header: "Size", cell: (r) => (r.kind === "object" ? formatBytes(r.obj.Size) : "-") },
+          { header: "Size", cell: (r) => (r.kind === "object" ? formatBytes(r.obj.Size) : "-"), sortValue: (r) => (r.kind === "object" ? (r.obj.Size ?? 0) : -1) },
           { header: "Storage class", cell: (r) => (r.kind === "object" ? (r.obj.StorageClass ?? "Standard") : "-") },
         ]}
         empty={<EmptyState title="No objects" description="You don't have any objects in this bucket." />}

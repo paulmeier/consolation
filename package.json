@@ -6,17 +6,28 @@
     "dev": "next dev -H 127.0.0.1",
     "build": "next build",
     "start": "next start -H 127.0.0.1",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:e2e": "playwright test",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.1175.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.1175.0",
     "@aws-sdk/client-dynamodb": "^3.1175.0",
     "@aws-sdk/client-ec2": "^3.1175.0",
+    "@aws-sdk/client-ecr": "^3.1175.0",
+    "@aws-sdk/client-eventbridge": "^3.1175.0",
     "@aws-sdk/client-iam": "^3.1175.0",
+    "@aws-sdk/client-kinesis": "^3.1175.0",
+    "@aws-sdk/client-kms": "^3.1175.0",
     "@aws-sdk/client-lambda": "^3.1175.0",
+    "@aws-sdk/client-route-53": "^3.1175.0",
     "@aws-sdk/client-s3": "^3.1175.0",
+    "@aws-sdk/client-secrets-manager": "^3.1175.0",
+    "@aws-sdk/client-sfn": "^3.1175.0",
     "@aws-sdk/client-sns": "^3.1175.0",
     "@aws-sdk/client-sqs": "^3.1175.0",
+    "@aws-sdk/client-ssm": "^3.1175.0",
     "@aws-sdk/client-sts": "^3.1175.0",
     "@aws-sdk/credential-providers": "^3.1175.0",
     "@aws-sdk/util-dynamodb": "^3.996.9",
@@ -28,6 +39,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",

@@ -98,3 +98,36 @@ dialog::backdrop {
 .underline-link:hover {
   color: var(--color-accent);
 }
+
+/* Table preferences and sorting (driven by TableFilter). */
+table[data-wrap="false"] td {
+  white-space: nowrap;
+}
+tr[data-stripe="true"] > td {
+  background: #fafaf9;
+}
+th[data-sortable] {
+  cursor: pointer;
+  user-select: none;
+}
+th[data-sortable]:hover {
+  color: var(--color-ink);
+}
+th[data-sortable]::after {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 6px;
+  vertical-align: middle;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--color-line-strong);
+}
+th[aria-sort="ascending"]::after {
+  border-top: 0;
+  border-bottom: 5px solid var(--color-ink);
+}
+th[aria-sort="descending"]::after {
+  border-top-color: var(--color-ink);
+}

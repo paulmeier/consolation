@@ -77,7 +77,7 @@ async function Groups() {
           { header: "Log group", cell: (g) => <Link className="underline-link" href={`/cloudwatch/log-groups/${encodeURIComponent(g.logGroupName!)}`}>{g.logGroupName}</Link> },
           { header: "Log class", cell: (g) => g.logGroupClass ?? "Standard" },
           { header: "Retention", cell: (g) => (g.retentionInDays ? `${g.retentionInDays} days` : "Never expire") },
-          { header: "Stored bytes", cell: (g) => formatBytes(g.storedBytes ?? 0) },
+          { header: "Stored bytes", cell: (g) => formatBytes(g.storedBytes ?? 0), sortValue: (g) => g.storedBytes ?? 0 },
           { header: "Creation time", cell: (g) => formatDate(g.creationTime) },
         ]}
         empty={<EmptyState title="No log groups" description="You don't have any log groups." />}

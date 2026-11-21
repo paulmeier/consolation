@@ -14,6 +14,15 @@ import { IAMClient } from "@aws-sdk/client-iam";
 import { STSClient } from "@aws-sdk/client-sts";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { EC2Client } from "@aws-sdk/client-ec2";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { SSMClient } from "@aws-sdk/client-ssm";
+import { KMSClient } from "@aws-sdk/client-kms";
+import { SFNClient } from "@aws-sdk/client-sfn";
+import { EventBridgeClient } from "@aws-sdk/client-eventbridge";
+import { KinesisClient } from "@aws-sdk/client-kinesis";
+import { ECRClient } from "@aws-sdk/client-ecr";
+import { CloudWatchClient } from "@aws-sdk/client-cloudwatch";
+import { Route53Client } from "@aws-sdk/client-route-53";
 
 /**
  * Connection settings for the local AWS Emulator.
@@ -120,6 +129,15 @@ export async function aws() {
     sts: new STSClient(cfg),
     logs: new CloudWatchLogsClient(cfg),
     ec2: new EC2Client(cfg),
+    secrets: new SecretsManagerClient(cfg),
+    ssm: new SSMClient(cfg),
+    kms: new KMSClient(cfg),
+    sfn: new SFNClient(cfg),
+    events: new EventBridgeClient(cfg),
+    kinesis: new KinesisClient(cfg),
+    ecr: new ECRClient(cfg),
+    cloudwatch: new CloudWatchClient(cfg),
+    route53: new Route53Client(cfg),
   };
 }
 

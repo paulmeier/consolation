@@ -64,7 +64,7 @@ async function Functions() {
           { header: "Description", cell: (f) => f.Description || "-" },
           { header: "Package type", cell: (f) => f.PackageType ?? "Zip" },
           { header: "Runtime", cell: (f) => f.Runtime ?? "-" },
-          { header: "Code size", cell: (f) => formatBytes(f.CodeSize) },
+          { header: "Code size", cell: (f) => formatBytes(f.CodeSize), sortValue: (f) => f.CodeSize ?? 0 },
           { header: "Last modified", cell: (f) => formatDate(f.LastModified) },
         ]}
         empty={<EmptyState title="No functions" description="There is no data to display." action={<LinkButton href="/lambda/functions/create">Create function</LinkButton>} />}
