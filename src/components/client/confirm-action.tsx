@@ -18,8 +18,10 @@ export function ConfirmAction({
   confirmLabel = "Delete",
   description,
   extra,
+  fields,
+  values,
 }: {
-  formId: string;
+  formId?: string;
   action: (fd: FormData) => void | Promise<void>;
   label: string;
   title: string;
@@ -28,21 +30,28 @@ export function ConfirmAction({
   confirmLabel?: string;
   description?: ReactNode;
   extra?: Record<string, string>;
+  /** Extra form fields shown in the dialog (for example a recovery window). */
+  fields?: ReactNode;
+  /** Act on these values instead of the rows selected in `formId` (detail pages). */
+  values?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [typed, setTyped] = useState("");
 
   function openModal() {
-    const els = document.querySelectorAll<HTMLInputElement>(`input[form="${CSS.escape(formId)}"][data-select]:checked`);
-    setSelected(Array.from(els).map((e) => e.value));
+    if (values) setSelected(values);
+    else {
+      const els = document.querySelectorAll<HTMLInputElement>(`input[form="${CSS.escape(formId ?? "")}"][data-select]:checked`);
+      setSelected(Array.from(els).map((e) => e.value));
+    }
     setTyped("");
     setOpen(true);
   }
 
   return (
     <>
-      <button type="button" className={cx(buttonClass("normal"), "needs-selection")} onClick={openModal}>
+      <button type="button" className={cx(buttonClass("normal"), !values && "needs-selection")} onClick={openModal}>
         {label}
       </button>
       <ModalFrame open={open} onClose={() => setOpen(false)} title={title}>
@@ -69,6 +78,7 @@ export function ConfirmAction({
               <li key={s}>{s}</li>
             ))}
           </ul>
+          {fields}
           <div className="space-y-1">
             <label className="block text-sm">
               To confirm, type <i className="font-bold">{confirmWord}</i> in the field.

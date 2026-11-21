@@ -6,6 +6,10 @@ export type Column<T> = {
   cell: (row: T) => ReactNode;
   width?: string;
   className?: string;
+  /** Value used for sorting; defaults to the cell's text (or its <time dateTime>). */
+  sortValue?: (row: T) => string | number | undefined;
+  /** Set false for action columns. */
+  sortable?: boolean;
 };
 
 /**
@@ -41,6 +45,9 @@ export function Table<T>({
             {columns.map((c, i) => (
               <th
                 key={i}
+                data-col={i}
+                data-label={typeof c.header === "string" ? c.header : undefined}
+                data-sortable={c.sortable === false ? undefined : ""}
                 style={c.width ? { width: c.width } : undefined}
                 className={cx(
                   "border-b border-line bg-surface py-[6px] pr-3 font-medium text-muted",
@@ -64,7 +71,7 @@ export function Table<T>({
           {rows.map((row) => {
             const key = rowKey(row);
             return (
-              <tr key={key} data-filter={filterText ? filterText(row).toLowerCase() : undefined} className="group">
+              <tr key={key} data-row data-filter={filterText ? filterText(row).toLowerCase() : undefined} className="group">
                 {selection && (
                   <td className="border-b border-line-soft py-2 pl-5 align-top">
                     <input
@@ -81,6 +88,8 @@ export function Table<T>({
                 {columns.map((c, i) => (
                   <td
                     key={i}
+                    data-col={i}
+                    data-sort={c.sortValue ? String(c.sortValue(row) ?? "") : undefined}
                     className={cx(
                       "border-b border-line-soft py-2 pr-3 align-top break-words",
                       i === 0 && !selection ? "pl-5" : "pl-2",

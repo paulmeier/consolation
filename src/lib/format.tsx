@@ -1,6 +1,18 @@
+function toDate(d: Date | string | number) {
+  return d instanceof Date ? d : new Date(typeof d === "string" && /^\d+$/.test(d) ? Number(d) * 1000 : d);
+}
+
+/** Date as a <time> element; tables sort on its dateTime attribute. */
 export function formatDate(d?: Date | string | number | null) {
   if (d === undefined || d === null || d === "") return "-";
-  const date = d instanceof Date ? d : new Date(typeof d === "string" && /^\d+$/.test(d) ? Number(d) * 1000 : d);
+  const date = toDate(d);
+  if (Number.isNaN(date.getTime())) return String(d);
+  return <time dateTime={date.toISOString()}>{formatDateText(date)}</time>;
+}
+
+export function formatDateText(d?: Date | string | number | null) {
+  if (d === undefined || d === null || d === "") return "-";
+  const date = toDate(d);
   if (Number.isNaN(date.getTime())) return String(d);
   const tz = -date.getTimezoneOffset();
   const sign = tz >= 0 ? "+" : "-";

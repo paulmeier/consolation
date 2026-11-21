@@ -8,6 +8,15 @@ import { ListTopicsCommand } from "@aws-sdk/client-sns";
 import { ListRolesCommand, ListUsersCommand } from "@aws-sdk/client-iam";
 import { DescribeLogGroupsCommand } from "@aws-sdk/client-cloudwatch-logs";
 import { GetCallerIdentityCommand } from "@aws-sdk/client-sts";
+import { ListSecretsCommand } from "@aws-sdk/client-secrets-manager";
+import { DescribeParametersCommand } from "@aws-sdk/client-ssm";
+import { ListKeysCommand } from "@aws-sdk/client-kms";
+import { ListStateMachinesCommand } from "@aws-sdk/client-sfn";
+import { ListRulesCommand } from "@aws-sdk/client-eventbridge";
+import { ListStreamsCommand } from "@aws-sdk/client-kinesis";
+import { DescribeRepositoriesCommand } from "@aws-sdk/client-ecr";
+import { DescribeAlarmsCommand } from "@aws-sdk/client-cloudwatch";
+import { ListHostedZonesCommand } from "@aws-sdk/client-route-53";
 import { aws, EMULATOR_DIR, EMULATOR_ENDPOINT, errorMessage, REGION } from "@/lib/emulator";
 import { checkHealth } from "@/lib/health";
 import { serviceById } from "@/lib/services";
@@ -70,6 +79,15 @@ async function ResourceSummary() {
     ["iam", "Users", count(async () => (await c.iam.send(new ListUsersCommand({}))).Users)],
     ["iam", "Roles", count(async () => (await c.iam.send(new ListRolesCommand({}))).Roles)],
     ["cloudwatch", "Log groups", count(async () => (await c.logs.send(new DescribeLogGroupsCommand({}))).logGroups)],
+    ["cloudwatch", "Alarms", count(async () => (await c.cloudwatch.send(new DescribeAlarmsCommand({}))).MetricAlarms)],
+    ["secretsmanager", "Secrets", count(async () => (await c.secrets.send(new ListSecretsCommand({}))).SecretList)],
+    ["ssm", "Parameters", count(async () => (await c.ssm.send(new DescribeParametersCommand({}))).Parameters)],
+    ["kms", "KMS keys", count(async () => (await c.kms.send(new ListKeysCommand({}))).Keys)],
+    ["stepfunctions", "State machines", count(async () => (await c.sfn.send(new ListStateMachinesCommand({}))).stateMachines)],
+    ["eventbridge", "Rules (default bus)", count(async () => (await c.events.send(new ListRulesCommand({}))).Rules)],
+    ["kinesis", "Data streams", count(async () => (await c.kinesis.send(new ListStreamsCommand({}))).StreamNames)],
+    ["ecr", "Repositories", count(async () => (await c.ecr.send(new DescribeRepositoriesCommand({}))).repositories)],
+    ["route53", "Hosted zones", count(async () => (await c.route53.send(new ListHostedZonesCommand({}))).HostedZones)],
   ].map(async ([id, label, p]) => ({ id: id as string, label: label as string, value: await (p as Promise<number | string>) })));
   return (
     <ul className="grid grid-cols-2 gap-x-6">

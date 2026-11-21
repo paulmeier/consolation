@@ -15,8 +15,17 @@ A local web console for [AWS Emulator](https://docs.aws.amazon.com/emulator/late
 | IAM | Users (access keys, attached policies), roles (trust policy, attached policies), customer managed policies |
 | CloudWatch Logs | Log groups, log streams, view and put log events |
 | EC2 | Instances: launch, start, stop, reboot, terminate. Security groups and key pairs |
+| CloudWatch metrics | Metrics browser with an SVG chart, publish test data, alarms (create, history, set state, actions), dashboards (text and metric widgets, JSON source) |
+| Secrets Manager | Store secrets (key/value or plaintext), reveal on demand, edit value (versions and staging labels), resource policy, rotation config, scheduled deletion and restore, tags |
+| Systems Manager Parameter Store | String/StringList/SecureString parameters, masked values with decrypt on demand, history and labels, path browsing, tags |
+| KMS | Customer and AWS managed keys, create symmetric/asymmetric/HMAC keys, enable/disable, rotation, aliases, key policy, scheduled deletion, cryptography playground (encrypt, decrypt, data keys, sign/verify, MAC) |
+| Step Functions | State machines with an ASL editor and live graph, executions with input/output, event history and graph highlighting, stop and redrive, activities |
+| EventBridge | Event buses, rules (pattern or schedule, targets, enable/disable, pattern tester), send events, archives and replays, connections and API destinations |
+| Kinesis Data Streams | Streams (on-demand/provisioned), data viewer (put and read records per shard), split/merge shards, enhanced fan-out consumers, retention and scaling |
+| ECR | Private repositories, images and scan findings, lifecycle and repository policies, tag mutability and scan-on-push settings |
+| Route 53 | Hosted zones (public/private), record editor (simple, alias, weighted), health checks |
 
-Other entries in the services menu (CloudFormation, Step Functions, KMS, …) open a placeholder page.
+Other entries in the services menu (CloudFormation, VPC, …) open a placeholder page. Every table supports filtering, sorting by column, pagination and a preferences modal (page size, visible columns, wrap lines, striped rows) saved per table.
 
 ## Run it
 
@@ -31,6 +40,19 @@ Other entries in the services menu (CloudFormation, Step Functions, KMS, …) op
 3. Open http://127.0.0.1:3000.
 
 `npm run build && npm start` runs a production build. Both servers bind to `127.0.0.1` only.
+
+## Tests and CI
+
+```bash
+npm run lint
+npm run typecheck
+npm run test:e2e                                   # builds and starts the app on 127.0.0.1:3100
+E2E_BASE_URL=http://127.0.0.1:3000 npm run test:e2e  # reuse a running dev server
+```
+
+The Playwright suite in `e2e/` needs a running emulator. It creates uniquely named resources and deletes them again.
+
+`.github/workflows/ci.yml` runs lint, type-check and build, then builds the emulator image from `docker/aws-emulator/Dockerfile` (latest package, no version pin), starts it on 127.0.0.1 with telemetry off, and runs the end-to-end suite.
 
 ## Configuration
 
