@@ -17,6 +17,13 @@ import { ListStreamsCommand } from "@aws-sdk/client-kinesis";
 import { DescribeRepositoriesCommand } from "@aws-sdk/client-ecr";
 import { DescribeAlarmsCommand } from "@aws-sdk/client-cloudwatch";
 import { ListHostedZonesCommand } from "@aws-sdk/client-route-53";
+import { ListStacksCommand } from "@aws-sdk/client-cloudformation";
+import { GetRestApisCommand } from "@aws-sdk/client-api-gateway";
+import { GetApisCommand } from "@aws-sdk/client-apigatewayv2";
+import { ListUserPoolsCommand } from "@aws-sdk/client-cognito-identity-provider";
+import { ListClustersCommand } from "@aws-sdk/client-ecs";
+import { DescribeDBInstancesCommand } from "@aws-sdk/client-rds";
+import { DescribeVpcsCommand } from "@aws-sdk/client-ec2";
 import { aws, EMULATOR_DIR, EMULATOR_ENDPOINT, errorMessage, REGION } from "@/lib/emulator";
 import { checkHealth } from "@/lib/health";
 import { serviceById } from "@/lib/services";
@@ -88,6 +95,12 @@ async function ResourceSummary() {
     ["kinesis", "Data streams", count(async () => (await c.kinesis.send(new ListStreamsCommand({}))).StreamNames)],
     ["ecr", "Repositories", count(async () => (await c.ecr.send(new DescribeRepositoriesCommand({}))).repositories)],
     ["route53", "Hosted zones", count(async () => (await c.route53.send(new ListHostedZonesCommand({}))).HostedZones)],
+    ["vpc", "VPCs", count(async () => (await c.ec2.send(new DescribeVpcsCommand({}))).Vpcs)],
+    ["cloudformation", "Stacks", count(async () => (await c.cfn.send(new ListStacksCommand({}))).StackSummaries?.filter((x) => x.StackStatus !== "DELETE_COMPLETE"))],
+    ["apigateway", "APIs", count(async () => [...((await c.apigw.send(new GetRestApisCommand({}))).items ?? []), ...((await c.apigw2.send(new GetApisCommand({}))).Items ?? [])])],
+    ["cognito", "User pools", count(async () => (await c.cognito.send(new ListUserPoolsCommand({ MaxResults: 60 }))).UserPools)],
+    ["ecs", "ECS clusters", count(async () => (await c.ecs.send(new ListClustersCommand({}))).clusterArns)],
+    ["rds", "DB instances", count(async () => (await c.rds.send(new DescribeDBInstancesCommand({}))).DBInstances)],
   ].map(async ([id, label, p]) => ({ id: id as string, label: label as string, value: await (p as Promise<number | string>) })));
   return (
     <ul className="grid grid-cols-2 gap-x-6">

@@ -7,9 +7,9 @@ A local web console for [AWS Emulator](https://docs.aws.amazon.com/emulator/late
 | Service | What works |
 | --- | --- |
 | Console Home | Recently visited, resource counts, emulator health and caller identity |
-| S3 | Buckets: list, create (optional versioning), empty, delete. Objects: browse prefixes, create folders, upload, preview, download, delete |
-| DynamoDB | Tables: list, create (partition + sort key), delete, overview. Items: scan, create/replace from JSON, delete |
-| Lambda | Functions: list, create from a Node.js/Python template (auto-creates an execution role), edit and deploy code, test invoke with logs, configuration (memory, timeout, env vars), delete |
+| S3 | Buckets: create, empty, delete. Objects: prefixes, folders, streamed multipart upload with progress, preview, download, versions, copy/move, tags, presigned URLs, pagination. Properties (versioning, tags, encryption, website), permissions (Block Public Access, policy, CORS), lifecycle rules |
+| DynamoDB | Tables with GSIs and deletion protection; Explore items with Scan or Query (indexes, sort-key conditions, pagination) and in-place editing; PartiQL editor; indexes; TTL, point-in-time recovery, tags; backups and restore; streams with a record viewer |
+| Lambda | Functions from templates or .zip, code editor, test invoke with saved events, monitor (recent logs), configuration (env vars, layers, concurrency, async destinations, function URL, resource policy), versions and weighted aliases, triggers (SQS, Kinesis, DynamoDB streams) with automatic role permissions, layers |
 | SQS | Queues: list with message counts, create standard/FIFO, purge, delete. Send, poll and delete messages |
 | SNS | Topics: list, create standard/FIFO, delete. Subscriptions: create, delete. Publish messages |
 | IAM | Users (access keys, attached policies), roles (trust policy, attached policies), customer managed policies |
@@ -24,6 +24,12 @@ A local web console for [AWS Emulator](https://docs.aws.amazon.com/emulator/late
 | Kinesis Data Streams | Streams (on-demand/provisioned), data viewer (put and read records per shard), split/merge shards, enhanced fan-out consumers, retention and scaling |
 | ECR | Private repositories, images and scan findings, lifecycle and repository policies, tag mutability and scan-on-push settings |
 | Route 53 | Hosted zones (public/private), record editor (simple, alias, weighted), health checks |
+| VPC | VPCs with a resource map, subnets, route tables (routes and associations), internet and NAT gateways, Elastic IPs, endpoints, peering, network ACLs |
+| CloudFormation | Stacks from pasted or uploaded templates, events, resources (linked to their Consolation pages), outputs, exports, change sets, update, drift detection. The emulator's coverage is low, so the pages show a warning |
+| API Gateway | REST APIs (resource tree, mock/Lambda/HTTP methods, test-invoke, deploy, authorizers), HTTP and WebSocket APIs (routes, integrations, stages), a real call through a stage's invoke URL, API keys and usage plans |
+| Cognito | User pools (users, enable/disable, groups, app clients, domain) and identity pools |
+| ECS | Clusters, services (desired count), tasks (run/stop), task definitions (form or JSON) |
+| RDS | Instances and Aurora clusters (create with a Secrets Manager–managed password, stop/start/reboot/delete), snapshots, subnet and parameter groups |
 
 Other entries in the services menu (CloudFormation, VPC, …) open a placeholder page. Every table supports filtering, sorting by column, pagination and a preferences modal (page size, visible columns, wrap lines, striped rows) saved per table.
 
@@ -63,6 +69,12 @@ The Playwright suite in `e2e/` needs a running emulator. It creates uniquely nam
 | `EMULATOR_DIR` | `~/.aws/emulator/$EMULATOR_PORT` | Folder with this run's `ca.pem` and `emulator_credentials` |
 | `EMULATOR_REGION` | `us-east-1` | Region used for requests |
 | `CONSOLATION_ALLOW_NON_LOOPBACK` | unset | Set to `1` to allow a non-loopback endpoint |
+
+## Emulator notes
+
+- Some emulator responses carry epoch timestamps with nanosecond precision, which the AWS SDK for JavaScript rejects. `src/lib/emulator.ts` trims them to milliseconds before deserialization.
+- API Gateway stages are called through the emulator with the `<api-id>.execute-api.<region>.amazonaws.com` Host header. Lambda function URLs are served on an internal emulator port, which is not reachable when the emulator runs in Docker with only port 9297 published.
+- EventBridge (v1.0.556) accepted events but did not deliver them to an SQS target in testing.
 
 ## How it connects
 

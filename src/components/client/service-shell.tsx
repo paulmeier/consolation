@@ -40,7 +40,8 @@ export function ServiceShell({
   title: string;
   homeHref: string;
   nav: NavItem[];
-  crumbLabels?: Record<string, string>;
+  /** Segment labels; null hides a segment that has no page of its own. */
+  crumbLabels?: Record<string, string | null>;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -57,6 +58,7 @@ export function ServiceShell({
   for (const s of segs) {
     acc += "/" + s;
     const decoded = decodeURIComponent(s);
+    if (crumbLabels && crumbLabels[s] === null) continue;
     const label = crumbLabels?.[s] ?? (/^[a-z-]+$/.test(decoded) && segs.indexOf(s) === 0 ? decoded.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase()) : decoded);
     if (crumbs[crumbs.length - 1].text !== label) crumbs.push({ text: label, href: acc });
   }
