@@ -1,26 +1,100 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design tokens measured from the live AWS console (Cloudscape, 2026 refresh).
+ */
+@theme {
+  --font-sans: "Ember Modern Text UI", "Amazon Ember", var(--font-roboto), Roboto, Arial, sans-serif;
+  --font-mono: Monaco, Menlo, Consolas, "Courier Prime", Courier, monospace;
+
+  --color-layout: #f6f6f5;
+  --color-surface: #ffffff;
+  --color-control: #f9f9f9;
+  --color-ink: #201e1b;
+  --color-heading: #161512;
+  --color-muted: #4c4942;
+  --color-subtle: #6f6b63;
+  --color-faint: #949088;
+  --color-line: #e3e1de;
+  --color-line-soft: #eeedeb;
+  --color-line-strong: #bab7b0;
+  --color-control-border: #949088;
+  --color-accent: #295eff;
+  --color-accent-soft: #eef3ff;
+  --color-primary: #262420;
+  --color-primary-hover: #000000;
+  --color-danger: #d13211;
+  --color-danger-soft: #fff5f3;
+  --color-success: #00802f;
+  --color-success-soft: #f2fcf3;
+  --color-warning: #8d6605;
+  --color-info-soft: #f0f4ff;
+  --color-topnav: #ffffff;
+
+  --shadow-card: 0 1px 1px 0 rgba(0, 7, 22, 0.05), 0 0 0 1px #e3e1de;
+  --shadow-pop: 0 4px 20px 1px rgba(0, 7, 22, 0.1), 0 0 0 1px #e3e1de;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    background: var(--color-layout);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  a {
+    color: inherit;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Action buttons that need at least one row selected in the same .sel-scope. */
+.sel-scope .needs-selection {
+  pointer-events: none;
+  color: var(--color-faint);
+  border-color: var(--color-line-strong);
+  background: var(--color-surface);
+}
+.sel-scope:has([data-select]:checked) .needs-selection {
+  pointer-events: auto;
+  color: #3e3b35;
+  border-color: var(--color-control-border);
+  background: var(--color-control);
+}
+.sel-scope:has([data-select]:checked) .needs-selection:hover {
+  background: #f2f2f1;
+  color: var(--color-ink);
+}
+.sel-scope:has([data-select]:checked) .needs-selection.needs-selection-danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+/* Selected row highlight (Cloudscape tints the selected row). */
+tr:has([data-select]:checked) > td {
+  background: var(--color-accent-soft);
+}
+
+tr[data-hidden="true"] {
+  display: none;
+}
+
+dialog::backdrop {
+  background: rgba(35, 35, 35, 0.6);
+}
+
+.underline-link {
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.underline-link:hover {
+  color: var(--color-accent);
 }

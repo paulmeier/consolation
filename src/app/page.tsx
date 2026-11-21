@@ -1,69 +1,211 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Suspense } from "react";
+import { ListBucketsCommand } from "@aws-sdk/client-s3";
+import { ListTablesCommand } from "@aws-sdk/client-dynamodb";
+import { ListFunctionsCommand } from "@aws-sdk/client-lambda";
+import { ListQueuesCommand } from "@aws-sdk/client-sqs";
+import { ListTopicsCommand } from "@aws-sdk/client-sns";
+import { ListRolesCommand, ListUsersCommand } from "@aws-sdk/client-iam";
+import { DescribeLogGroupsCommand } from "@aws-sdk/client-cloudwatch-logs";
+import { GetCallerIdentityCommand } from "@aws-sdk/client-sts";
+import { aws, EMULATOR_DIR, EMULATOR_ENDPOINT, errorMessage, REGION } from "@/lib/emulator";
+import { checkHealth } from "@/lib/health";
+import { serviceById } from "@/lib/services";
+import { Container, ExternalIcon, Header, KeyValue, LinkButton, StatusIndicator, Code } from "@/components/ui";
+import { ServiceIcon } from "@/components/service-icon";
+import { RecentlyVisited } from "@/components/client/recently-visited";
+import { Page } from "@/components/page";
 
-export default function Home() {
+export const metadata = { title: "Console Home" };
+
+function Grip() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <svg viewBox="0 0 10 16" className="mr-2 inline h-4 w-2.5 text-muted" fill="currentColor" aria-hidden>
+      {[3, 8, 13].flatMap((y) => [2.5, 7.5].map((x) => <circle key={`${x}${y}`} cx={x} cy={y} r="1.2" />))}
+    </svg>
+  );
+}
+
+function Widget({ title, info, actions, children, footer }: { title: string; info?: boolean; actions?: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode }) {
+  return (
+    <Container
+      className="flex h-full flex-col"
+      header={
+        <Header
+          info={info}
+          actions={
+            <>
+              {actions}
+              <span className="px-1 text-lg leading-none text-ink">⋮</span>
+            </>
+          }
+        >
+          <Grip />
+          {title}
+        </Header>
+      }
+      footer={footer}
+    >
+      {children}
+    </Container>
+  );
+}
+
+async function count<T>(fn: () => Promise<T[] | undefined>): Promise<number | string> {
+  try {
+    return (await fn())?.length ?? 0;
+  } catch (e) {
+    return errorMessage(e).includes("not implemented") ? "n/a" : "error";
+  }
+}
+
+async function ResourceSummary() {
+  const c = await aws();
+  const rows = await Promise.all([
+    ["s3", "Buckets", count(async () => (await c.s3.send(new ListBucketsCommand({}))).Buckets)],
+    ["dynamodb", "Tables", count(async () => (await c.dynamodb.send(new ListTablesCommand({}))).TableNames)],
+    ["lambda", "Functions", count(async () => (await c.lambda.send(new ListFunctionsCommand({}))).Functions)],
+    ["sqs", "Queues", count(async () => (await c.sqs.send(new ListQueuesCommand({}))).QueueUrls)],
+    ["sns", "Topics", count(async () => (await c.sns.send(new ListTopicsCommand({}))).Topics)],
+    ["iam", "Users", count(async () => (await c.iam.send(new ListUsersCommand({}))).Users)],
+    ["iam", "Roles", count(async () => (await c.iam.send(new ListRolesCommand({}))).Roles)],
+    ["cloudwatch", "Log groups", count(async () => (await c.logs.send(new DescribeLogGroupsCommand({}))).logGroups)],
+  ].map(async ([id, label, p]) => ({ id: id as string, label: label as string, value: await (p as Promise<number | string>) })));
+  return (
+    <ul className="grid grid-cols-2 gap-x-6">
+      {rows.map((r) => {
+        const s = serviceById(r.id)!;
+        return (
+          <li key={r.label} className="flex items-center justify-between border-b border-line-soft py-2.5">
+            <Link href={s.href} className="flex items-center gap-2">
+              <ServiceIcon service={s} size={20} />
+              <span className="underline-link">{r.label}</span>
+            </Link>
+            <span className="text-xl font-bold text-heading">{r.value}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+async function EmulatorHealth() {
+  const health = await checkHealth();
+  let account = "-";
+  let arn = "-";
+  if (health.ok) {
+    try {
+      const c = await aws();
+      const id = await c.sts.send(new GetCallerIdentityCommand({}));
+      account = id.Account ?? "-";
+      arn = id.Arn ?? "-";
+    } catch (e) {
+      arn = errorMessage(e);
+    }
+  }
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-sm text-muted">Status</p>
+        <p className="text-xl">
+          {health.ok ? <StatusIndicator type="success">Healthy</StatusIndicator> : <StatusIndicator type="error">Unreachable</StatusIndicator>}
+        </p>
+        {!health.ok && <p className="mt-1 text-sm break-words text-danger">{health.detail}</p>}
+      </div>
+      <div className="border-t border-line-soft pt-3">
+        <p className="text-sm text-muted">Caller identity</p>
+        <p className="text-xl font-bold text-heading">{account}</p>
+        <p className="text-sm break-all text-muted">{arn}</p>
+      </div>
+      <div className="border-t border-line-soft pt-3">
+        <p className="text-sm text-muted">Region</p>
+        <p className="text-sm">{REGION}</p>
+      </div>
     </div>
+  );
+}
+
+function Loading() {
+  return <p className="py-4 text-muted">Loading…</p>;
+}
+
+export default async function Home() {
+  return (
+    <main className="px-4 py-6 pb-16 md:px-10">
+      <Page>
+        <Header
+          variant="h1"
+          info
+          actions={
+            <>
+              <LinkButton href="/settings">Emulator settings</LinkButton>
+              <LinkButton href="/s3/buckets/create" variant="primary">
+                + Create bucket
+              </LinkButton>
+            </>
+          }
+        >
+          Console Home
+        </Header>
+
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1.4fr_1.2fr]">
+          <Widget title="Recently visited" info actions={<LinkButton href="/services">All services</LinkButton>}>
+            <RecentlyVisited />
+          </Widget>
+          <Widget title="Resource summary">
+            <Suspense fallback={<Loading />}>
+              <ResourceSummary />
+            </Suspense>
+          </Widget>
+          <Widget title="Emulator health" info footer={<Link href="/settings" className="underline-link">Go to emulator settings</Link>}>
+            <Suspense fallback={<Loading />}>
+              <EmulatorHealth />
+            </Suspense>
+          </Widget>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <Widget title="Get started">
+            <ul className="divide-y divide-line-soft">
+              {[
+                ["Store files in S3", "Create a bucket, upload objects and browse prefixes.", "/s3/buckets/create"],
+                ["Create a DynamoDB table", "Define keys, then put and scan items.", "/dynamodb/tables/create"],
+                ["Deploy a Lambda function", "Create a Node.js or Python function from a template and test it.", "/lambda/functions/create"],
+                ["Send messages with SQS", "Create a queue, then send and poll for messages.", "/sqs/queues"],
+              ].map(([t, d, href]) => (
+                <li key={href} className="py-3">
+                  <Link href={href} className="underline-link font-bold">
+                    {t}
+                  </Link>
+                  <p className="text-sm text-muted">{d}</p>
+                </li>
+              ))}
+            </ul>
+          </Widget>
+          <Widget title="Connection">
+            <KeyValue
+              columns={1}
+              items={[
+                { label: "Endpoint", value: <Code>{EMULATOR_ENDPOINT}</Code> },
+                { label: "Run files (CA and credentials)", value: <Code>{EMULATOR_DIR}</Code> },
+                {
+                  label: "Use the same emulator from your shell",
+                  value: <Code>source ~/.aws/emulator/9297.env</Code>,
+                },
+                {
+                  label: "Documentation",
+                  value: (
+                    <a className="text-accent hover:underline" href="https://docs.aws.amazon.com/emulator/latest/userguide/" target="_blank" rel="noreferrer">
+                      AWS Emulator user guide
+                      <ExternalIcon />
+                    </a>
+                  ),
+                },
+              ]}
+            />
+          </Widget>
+        </div>
+      </Page>
+    </main>
   );
 }
