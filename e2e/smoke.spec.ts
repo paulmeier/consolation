@@ -58,6 +58,28 @@ const ROUTES = [
   "/rds/snapshots",
   "/rds/groups",
   "/lambda/layers",
+  "/iam/groups",
+  "/iam/identity-providers",
+  "/iam/account-settings",
+  "/iam/sts",
+  "/sns/subscriptions",
+  "/sns/mobile/push",
+  "/sns/mobile/text-messaging",
+  "/cloudwatch/logs-insights",
+  "/cloudwatch/live-tail",
+  "/ec2/amis",
+  "/ec2/volumes",
+  "/ec2/snapshots",
+  "/ec2/launch-templates",
+  "/ec2/elastic-ips",
+  "/ec2/network-interfaces",
+  "/ec2/placement-groups",
+  "/ec2/spot-requests",
+  "/ec2/capacity-reservations",
+  "/ec2/dedicated-hosts",
+  "/s3/access-points",
+  "/dynamodb/imports",
+  "/dynamodb/exports",
 ];
 
 for (const route of ROUTES) {
@@ -95,4 +117,17 @@ test("visual mode switches and persists", async ({ page }) => {
   await expect(html).toHaveAttribute("data-theme", "light");
   await page.reload();
   await expect(html).toHaveAttribute("data-theme", "light");
+});
+
+test("density switches to compact and persists", async ({ page }) => {
+  await go(page, "/settings");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-density", "comfortable");
+  const header = page.locator("[data-ctr=header]").first();
+  const before = await header.evaluate((el) => getComputedStyle(el).paddingTop);
+  await page.getByRole("radio", { name: "Compact", exact: true }).check();
+  await expect(html).toHaveAttribute("data-density", "compact");
+  await expect.poll(() => header.evaluate((el) => getComputedStyle(el).paddingTop)).not.toBe(before);
+  await page.reload();
+  await expect(html).toHaveAttribute("data-density", "compact");
 });

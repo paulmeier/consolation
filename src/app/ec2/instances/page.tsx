@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { DescribeInstancesCommand, type Instance } from "@aws-sdk/client-ec2";
 import { aws, errorMessage } from "@/lib/emulator";
@@ -77,7 +78,7 @@ async function Instances() {
         filterText={(i) => `${nameOf(i)} ${i.InstanceId} ${i.InstanceType} ${i.State?.Name}`}
         columns={[
           { header: "Name", cell: nameOf },
-          { header: "Instance ID", cell: (i) => <span className="font-mono text-[13px]">{i.InstanceId}</span> },
+          { header: "Instance ID", cell: (i) => <Link className="font-mono text-[13px] text-accent hover:underline" href={`/ec2/instances/${i.InstanceId}`}>{i.InstanceId}</Link> },
           { header: "Instance state", cell: (i) => state(i.State?.Name) },
           { header: "Instance type", cell: (i) => i.InstanceType },
           { header: "Availability Zone", cell: (i) => i.Placement?.AvailabilityZone ?? "-" },

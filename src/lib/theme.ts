@@ -11,3 +11,11 @@ export function parseTheme(v: string | undefined): Theme {
 export async function getTheme(): Promise<Theme> {
   return parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 }
+
+export type Density = "comfortable" | "compact";
+export const DENSITY_COOKIE = "consolation_density";
+
+/** Content density saved in its cookie (defaults to comfortable). */
+export async function getDensity(): Promise<Density> {
+  return (await cookies()).get(DENSITY_COOKIE)?.value === "compact" ? "compact" : "comfortable";
+}

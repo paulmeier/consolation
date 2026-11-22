@@ -26,6 +26,8 @@ import { Container, EmptyState, ErrorAlert, FormField, Header, Input, KeyValue, 
 import { keyOf, tableStatus } from "../../shared";
 import { createBackup, createGsi, deleteBackups, deleteGsis, deleteItems, putItem, restoreBackup, setDeletionProtection, setPitr, setStream, setTtl, tagTable, untagTable } from "../../actions";
 import { PartiqlEditor } from "../../partiql";
+import { ExportsPanel } from "../../exports-panel";
+import { MetricChart } from "@/app/cloudwatch/chart";
 
 const FORM = "items-form";
 const PAGE = 50;
@@ -443,7 +445,7 @@ async function Streams({ table, desc }: { table: string; desc: TableDescription 
 export default async function TablePage({ params, searchParams }: PageProps<"/dynamodb/tables/[table]">) {
   const table = decodeURIComponent((await params).table);
   const sp = (await searchParams) as Sp;
-  const tabs = ["overview", "indexes", "items", "partiql", "backups", "streams", "settings"];
+  const tabs = ["overview", "indexes", "monitor", "items", "partiql", "backups", "streams", "settings"];
   const tab = tabs.includes(String(sp.tab)) ? String(sp.tab) : "overview";
   let desc: TableDescription | undefined;
   try {
@@ -462,6 +464,7 @@ export default async function TablePage({ params, searchParams }: PageProps<"/dy
         tabs={[
           { id: "overview", label: "Overview" },
           { id: "indexes", label: "Indexes" },
+          { id: "monitor", label: "Monitor" },
           { id: "items", label: "Explore items" },
           { id: "partiql", label: "PartiQL editor" },
           { id: "backups", label: "Backups" },
@@ -491,7 +494,28 @@ export default async function TablePage({ params, searchParams }: PageProps<"/dy
         {tab === "items" && <Items table={table} desc={d} sp={sp} />}
         {tab === "partiql" && <Container header={<Header description="Run PartiQL statements (ExecuteStatement) against this table.">PartiQL editor</Header>}><PartiqlEditor table={table} /></Container>}
         {tab === "backups" && <Backups table={table} />}
-        {tab === "streams" && <Streams table={table} desc={d} />}
+        {tab === "streams" && (
+          <>
+            <ExportsPanel table={table} arn={d.TableArn!} />
+            <Streams table={table} desc={d} />
+          </>
+        )}
+        {tab === "monitor" && (
+          <Container header={<Header description="CloudWatch metrics for this table over the last 3 hours.">CloudWatch metrics</Header>}>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              {(
+                [
+                  ["Read usage (consumed RCUs)", ["ConsumedReadCapacityUnits"], "Sum"],
+                  ["Write usage (consumed WCUs)", ["ConsumedWriteCapacityUnits"], "Sum"],
+                  ["Successful request latency", ["SuccessfulRequestLatency"], "Average"],
+                  ["Throttled and errored requests", ["ThrottledRequests", "UserErrors", "SystemErrors"], "Sum"],
+                ] as const
+              ).map(([title, metrics, stat]) => (
+                <MetricChart key={title} title={title} metrics={metrics.map((m) => ({ namespace: "AWS/DynamoDB", metric: m, stat, dimensions: [{ Name: "TableName", Value: table }] }))} />
+              ))}
+            </div>
+          </Container>
+        )}
         {tab === "settings" && <Settings table={table} desc={d} />}
       </Suspense>
     </Page>

@@ -28,6 +28,7 @@ import {
 import { CreateRoleCommand, GetRoleCommand, PutRolePolicyCommand } from "@aws-sdk/client-iam";
 import { aws, errorMessage, type Clients } from "@/lib/emulator";
 import { flash } from "@/lib/flash";
+import { guard } from "@/lib/guard";
 import { runtimeInfo, templateFor } from "./templates";
 
 const ROLE = "consolation-lambda-execution-role";
@@ -61,18 +62,37 @@ export async function createFunction(fd: FormData) {
   try {
     const { lambda, iam } = await aws();
     const roleArn = String(fd.get("role") ?? "").trim() || (await ensureRole(iam));
-    await lambda.send(
-      new CreateFunctionCommand({
-        FunctionName: name,
-        Runtime: runtime as never,
-        Handler: rt.handler,
-        Role: roleArn,
-        Code: { ZipFile: zipOf(rt.file, templateFor(runtime)) },
-        Description: String(fd.get("description") ?? ""),
-        Timeout: 3,
-        MemorySize: 128,
-      }),
-    );
+    const arch = fd.get("architecture") === "arm64" ? "arm64" : "x86_64";
+    if (fd.get("packageType") === "Image") {
+      const imageUri = String(fd.get("imageUri") ?? "").trim();
+      if (!imageUri) throw new Error("Enter a container image URI.");
+      await lambda.send(
+        new CreateFunctionCommand({
+          FunctionName: name,
+          PackageType: "Image",
+          Code: { ImageUri: imageUri },
+          Role: roleArn,
+          Architectures: [arch],
+          Description: String(fd.get("description") ?? ""),
+          Timeout: 3,
+          MemorySize: 128,
+        }),
+      );
+    } else {
+      await lambda.send(
+        new CreateFunctionCommand({
+          FunctionName: name,
+          Runtime: runtime as never,
+          Handler: rt.handler,
+          Role: roleArn,
+          Architectures: [arch],
+          Code: { ZipFile: zipOf(rt.file, templateFor(runtime)) },
+          Description: String(fd.get("description") ?? ""),
+          Timeout: 3,
+          MemorySize: 128,
+        }),
+      );
+    }
   } catch (e) {
     await flash("error", `Failed to create function ${name}. ${errorMessage(e)}`);
     redirect("/lambda/functions/create");
@@ -374,4 +394,27 @@ export async function deleteLayerVersions(fd: FormData) {
     }
   }
   revalidatePath("/lambda/layers");
+}
+
+export async function deployImage(fd: FormData) {
+  const name = String(fd.get("name"));
+  await guard(`Successfully updated the function ${name} with the new image.`, `/lambda/functions/${encodeURIComponent(name)}`, async () => {
+    const { lambda } = await aws();
+    await lambda.send(new UpdateFunctionCodeCommand({ FunctionName: name, ImageUri: String(fd.get("imageUri")).trim(), Publish: fd.get("publish") === "on" }));
+  });
+}
+
+export async function saveImageConfig(fd: FormData) {
+  const name = String(fd.get("name"));
+  const split = (k: string) => String(fd.get(k) ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  await guard("Image configuration saved.", `/lambda/functions/${encodeURIComponent(name)}`, async () => {
+    const { lambda } = await aws();
+    const wd = String(fd.get("workdir") ?? "").trim();
+    await lambda.send(
+      new UpdateFunctionConfigurationCommand({
+        FunctionName: name,
+        ImageConfig: { EntryPoint: split("entrypoint"), Command: split("command"), ...(wd ? { WorkingDirectory: wd } : {}) },
+      }),
+    );
+  });
 }

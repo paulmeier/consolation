@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { Theme } from "@/lib/theme";
+import type { Density, Theme } from "@/lib/theme";
 import { cx } from "../ui";
 
 export const THEME_OPTIONS: { value: Theme; label: string; description: string }[] = [
@@ -76,6 +76,51 @@ export function ThemeChooser({ initial, compact }: { initial: Theme; compact?: b
               <ThemeIcon theme={o.value} className="h-3.5 w-3.5 text-muted" />
               {o.label}
             </span>
+            {!compact && <span className="text-sm text-muted">{o.description}</span>}
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+const DENSITY_OPTIONS: { value: Density; label: string; description: string }[] = [
+  { value: "comfortable", label: "Comfortable", description: "More space around content, easier to scan." },
+  { value: "compact", label: "Compact", description: "Less spacing, so more rows and fields fit on the screen." },
+];
+
+function subscribeDensity(cb: () => void) {
+  const obs = new MutationObserver(cb);
+  obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-density"] });
+  return () => obs.disconnect();
+}
+
+const readDensity = (): Density => (document.documentElement.dataset.density === "compact" ? "compact" : "comfortable");
+
+export function setDensity(d: Density) {
+  document.documentElement.dataset.density = d;
+  document.cookie = `consolation_density=${d}; path=/; max-age=31536000; samesite=lax`;
+}
+
+/** Radio group for content density (Cloudscape comfortable/compact). */
+export function DensityChooser({ initial, compact }: { initial: Density; compact?: boolean }) {
+  const density = useSyncExternalStore(subscribeDensity, readDensity, () => initial);
+  return (
+    <fieldset className={cx("flex flex-col", compact ? "gap-0.5" : "gap-3")}>
+      <legend className={cx("font-bold", compact ? "mb-1 text-sm" : "mb-2")}>Density</legend>
+      {DENSITY_OPTIONS.map((o) => (
+        <label key={o.value} className={cx("flex cursor-pointer items-start gap-2", compact && "rounded px-1 py-1 hover:bg-hover")}>
+          <input
+            type="radio"
+            name={compact ? "density-menu" : "density"}
+            value={o.value}
+            aria-label={o.label}
+            checked={density === o.value}
+            onChange={() => setDensity(o.value)}
+            className="mt-[3px] accent-accent"
+          />
+          <span className="flex min-w-0 flex-col">
+            <span>{o.label}</span>
             {!compact && <span className="text-sm text-muted">{o.description}</span>}
           </span>
         </label>

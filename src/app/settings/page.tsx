@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { EMULATOR_DIR, EMULATOR_ENDPOINT, EMULATOR_PORT, REGION } from "@/lib/emulator";
 import { checkHealth } from "@/lib/health";
 import { Code, Container, Header, KeyValue, StatusIndicator } from "@/components/ui";
-import { ThemeChooser } from "@/components/client/theme";
-import { getTheme } from "@/lib/theme";
+import { DensityChooser, ThemeChooser } from "@/components/client/theme";
+import { getDensity, getTheme } from "@/lib/theme";
 
 export const metadata = { title: "Settings" };
 
@@ -13,7 +13,7 @@ async function Health() {
 }
 
 export default async function Settings() {
-  const theme = await getTheme();
+  const [theme, density] = await Promise.all([getTheme(), getDensity()]);
   return (
     <main className="mx-auto max-w-[1080px] px-4 py-6 md:px-10">
       <div className="flex flex-col gap-6">
@@ -21,7 +21,10 @@ export default async function Settings() {
           Settings
         </Header>
         <Container header={<Header>Appearance</Header>}>
-          <ThemeChooser initial={theme} />
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <ThemeChooser initial={theme} />
+            <DensityChooser initial={density} />
+          </div>
         </Container>
         <Container header={<Header>Connection</Header>}>
           <KeyValue

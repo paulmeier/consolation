@@ -14,10 +14,15 @@ import {
   UpdateContinuousBackupsCommand,
   UpdateTableCommand,
   UpdateTimeToLiveCommand,
+  ExportTableToPointInTimeCommand,
+  ImportTableCommand,
+  type InputCompressionType,
+  type InputFormat,
   type StreamViewType,
 } from "@aws-sdk/client-dynamodb";
 import { aws, errorMessage } from "@/lib/emulator";
 import { flash } from "@/lib/flash";
+import { guard } from "@/lib/guard";
 
 export async function createTable(fd: FormData) {
   const name = String(fd.get("name") ?? "").trim();
@@ -215,4 +220,51 @@ export async function runPartiql(_p: PartiqlResult, fd: FormData): Promise<Parti
   } catch (e) {
     return { error: errorMessage(e), ms: Date.now() - started };
   }
+}
+
+// Exports to S3 and imports from S3
+export async function exportTable(fd: FormData) {
+  const table = String(fd.get("table"));
+  const arn = String(fd.get("arn"));
+  await guard(`Export of ${table} started.`, [`/dynamodb/tables/${encodeURIComponent(table)}`, "/dynamodb/exports"], async () => {
+    const { dynamodb } = await aws();
+    if (fd.get("enablePitr") === "on") await dynamodb.send(new UpdateContinuousBackupsCommand({ TableName: table, PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true } }));
+    const prefix = String(fd.get("prefix") ?? "").trim();
+    await dynamodb.send(
+      new ExportTableToPointInTimeCommand({
+        TableArn: arn,
+        S3Bucket: String(fd.get("bucket")),
+        ...(prefix ? { S3Prefix: prefix } : {}),
+        ExportFormat: fd.get("format") === "ION" ? "ION" : "DYNAMODB_JSON",
+      }),
+    );
+  });
+}
+
+export async function importTable(fd: FormData) {
+  const name = String(fd.get("name")).trim();
+  await guard(`Import into new table ${name} started.`, "/dynamodb/imports", async () => {
+    const { dynamodb } = await aws();
+    const pk = String(fd.get("pk")).trim();
+    const sk = String(fd.get("sk") ?? "").trim();
+    const prefix = String(fd.get("prefix") ?? "").trim();
+    const format = String(fd.get("format") || "DYNAMODB_JSON") as InputFormat;
+    const compression = String(fd.get("compression") || "NONE") as InputCompressionType;
+    await dynamodb.send(
+      new ImportTableCommand({
+        S3BucketSource: { S3Bucket: String(fd.get("bucket")), ...(prefix ? { S3KeyPrefix: prefix } : {}) },
+        InputFormat: format,
+        InputCompressionType: compression,
+        TableCreationParameters: {
+          TableName: name,
+          BillingMode: "PAY_PER_REQUEST",
+          AttributeDefinitions: [
+            { AttributeName: pk, AttributeType: String(fd.get("pkType") || "S") as ScalarAttributeType },
+            ...(sk ? [{ AttributeName: sk, AttributeType: String(fd.get("skType") || "S") as ScalarAttributeType }] : []),
+          ],
+          KeySchema: [{ AttributeName: pk, KeyType: "HASH" }, ...(sk ? [{ AttributeName: sk, KeyType: "RANGE" as const }] : [])],
+        },
+      }),
+    );
+  });
 }

@@ -1,11 +1,11 @@
-import { GetObjectCommand, GetObjectTaggingCommand, HeadObjectCommand, ListObjectVersionsCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, GetObjectLockConfigurationCommand, GetObjectTaggingCommand, HeadObjectCommand, ListObjectVersionsCommand } from "@aws-sdk/client-s3";
 import { aws, errorMessage } from "@/lib/emulator";
 import { formatBytes, formatDate } from "@/lib/format";
 import { Page } from "@/components/page";
 import { Table } from "@/components/table";
 import { ModalButton } from "@/components/client/modal";
-import { Badge, Container, EmptyState, ErrorAlert, FormField, Header, Input, KeyValue, Textarea, buttonClass } from "@/components/ui";
-import { copyObject, saveObjectTags } from "../../../actions";
+import { Badge, Container, EmptyState, ErrorAlert, FormField, Header, Input, KeyValue, Select, Textarea, buttonClass } from "@/components/ui";
+import { copyObject, saveObjectRetention, saveObjectTags, setLegalHold } from "../../../actions";
 import { PresignForm } from "../../../presign";
 
 const PREVIEWABLE = /^(text\/|application\/(json|xml|javascript|x-yaml|yaml))/;
@@ -31,10 +31,14 @@ export default async function ObjectPage({ params, searchParams }: PageProps<"/s
     );
   }
   const download = `/api/s3/download?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
-  const [tags, versions] = await Promise.all([
+  const [tags, versions, lock] = await Promise.all([
     s3.send(new GetObjectTaggingCommand({ Bucket: bucket, Key: key })).then((r) => r.TagSet ?? []).catch(() => []),
     s3.send(new ListObjectVersionsCommand({ Bucket: bucket, Prefix: key })).then((r) => (r.Versions ?? []).filter((v) => v.Key === key)).catch(() => []),
+    s3.send(new GetObjectLockConfigurationCommand({ Bucket: bucket })).then((r) => r.ObjectLockConfiguration?.ObjectLockEnabled === "Enabled").catch(() => false),
   ]);
+  const retainUntil = head.ObjectLockRetainUntilDate;
+  const localInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const defaultUntil = retainUntil ?? new Date(new Date().getTime() + 86400_000);
   const hidden = (
     <>
       <input type="hidden" name="bucket" value={bucket} />
@@ -89,6 +93,51 @@ export default async function ObjectPage({ params, searchParams }: PageProps<"/s
           <div className="flex justify-end"><button className={buttonClass("normal")}>Save tags</button></div>
         </form>
       </Container>
+      {lock && (
+        <Container
+          header={
+            <Header
+              description="Retention and legal hold for this object version (Object Lock)."
+              actions={
+                <>
+                  <form action={setLegalHold}>
+                    {hidden}
+                    <input type="hidden" name="versionId" value={head.VersionId ?? ""} />
+                    <input type="hidden" name="on" value={String(head.ObjectLockLegalHoldStatus !== "ON")} />
+                    <button className={buttonClass("normal")}>{head.ObjectLockLegalHoldStatus === "ON" ? "Remove legal hold" : "Apply legal hold"}</button>
+                  </form>
+                  <ModalButton label="Edit retention" title="Object Lock retention">
+                    <form action={saveObjectRetention} className="space-y-4">
+                      {hidden}
+                      <input type="hidden" name="versionId" value={head.VersionId ?? ""} />
+                      <FormField label="Retention mode">
+                        <Select name="mode" defaultValue={head.ObjectLockMode ?? "GOVERNANCE"}>
+                          <option value="GOVERNANCE">Governance</option>
+                          <option value="COMPLIANCE">Compliance</option>
+                          <option value="">Disable (governance mode only, with bypass)</option>
+                        </Select>
+                      </FormField>
+                      <FormField label="Retain until"><Input name="until" type="datetime-local" required defaultValue={localInput(defaultUntil)} /></FormField>
+                      <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="bypass" className="accent-accent" /> Bypass governance retention</label>
+                      <div className="flex justify-end"><button className={buttonClass("primary")}>Save changes</button></div>
+                    </form>
+                  </ModalButton>
+                </>
+              }
+            >
+              Object Lock
+            </Header>
+          }
+        >
+          <KeyValue
+            items={[
+              { label: "Retention mode", value: head.ObjectLockMode ?? "None" },
+              { label: "Retain until", value: retainUntil ? formatDate(retainUntil) : "-" },
+              { label: "Legal hold", value: head.ObjectLockLegalHoldStatus === "ON" ? "On" : "Off" },
+            ]}
+          />
+        </Container>
+      )}
       {versions.length > 1 && (
         <Container noPadding header={<Header counter={versions.length}>Versions</Header>}>
           <Table

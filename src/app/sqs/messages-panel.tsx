@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { Fragment, useActionState, useState } from "react";
 import { deleteMessage, pollMessages, sendMessage, type SqsResult } from "./actions";
 import { buttonClass } from "@/components/ui";
+import { KeyValueEditor } from "@/components/client/kv-editor";
+import { formatDateText } from "@/lib/format";
 
 export function MessagesPanel({ name }: { name: string }) {
   const fifo = name.endsWith(".fifo");
@@ -22,6 +24,8 @@ export function MessagesPanel({ name }: { name: string }) {
           <>
             <label className="block text-sm font-bold">Message group ID</label>
             <input name="group" required className={input} defaultValue="default" />
+            <label className="block text-sm font-bold">Message deduplication ID <i className="font-normal text-muted">- optional with content-based deduplication</i></label>
+            <input name="dedup" className={input} />
           </>
         ) : (
           <>
@@ -29,6 +33,11 @@ export function MessagesPanel({ name }: { name: string }) {
             <input name="delay" type="number" min={0} max={900} defaultValue={0} className={input} />
           </>
         )}
+        <details className="rounded-lg border border-line p-3">
+          <summary className="cursor-pointer text-sm font-bold">Message attributes</summary>
+          <p className="my-2 text-sm text-muted">Numeric values are sent as Number, everything else as String.</p>
+          <KeyValueEditor name="attributes" />
+        </details>
         <div className="flex justify-end">
           <button className={buttonClass("primary")} disabled={sending}>{sending ? "Sending…" : "Send message"}</button>
         </div>
@@ -63,7 +72,20 @@ export function MessagesPanel({ name }: { name: string }) {
                 {polled.messages.filter((m) => !deleted.has(m.id)).map((m) => (
                   <tr key={m.id} className="border-b border-line-soft align-top">
                     <td className="px-3 py-2 font-mono text-xs break-all">{m.id}</td>
-                    <td className="px-3 py-2"><pre className="max-h-40 overflow-auto font-mono text-[13px] whitespace-pre-wrap">{m.body}</pre></td>
+                    <td className="px-3 py-2">
+                      <pre className="max-h-40 overflow-auto font-mono text-[13px] whitespace-pre-wrap">{m.body}</pre>
+                      <details className="mt-1 text-xs">
+                        <summary className="cursor-pointer text-accent">Details</summary>
+                        <dl className="mt-1 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
+                          <dt className="text-subtle">MD5 of body</dt><dd className="font-mono break-all">{m.md5 ?? "-"}</dd>
+                          {m.sentAt && <><dt className="text-subtle">Sent</dt><dd>{formatDateText(Number(m.sentAt))}</dd></>}
+                          {m.system.ApproximateFirstReceiveTimestamp && <><dt className="text-subtle">First received</dt><dd>{formatDateText(Number(m.system.ApproximateFirstReceiveTimestamp))}</dd></>}
+                          {m.system.MessageGroupId && <><dt className="text-subtle">Message group ID</dt><dd>{m.system.MessageGroupId}</dd></>}
+                          {m.system.SequenceNumber && <><dt className="text-subtle">Sequence number</dt><dd className="font-mono">{m.system.SequenceNumber}</dd></>}
+                          {Object.entries(m.attributes).map(([k, v]) => <Fragment key={k}><dt className="text-subtle">Attribute: {k}</dt><dd>{v}</dd></Fragment>)}
+                        </dl>
+                      </details>
+                    </td>
                     <td className="px-3 py-2">{m.receiveCount ?? "-"}</td>
                     <td className="px-3 py-2">
                       <form action={async (fd) => { setDeleted((s) => new Set(s).add(m.id)); await deleteMessage(fd); }}>

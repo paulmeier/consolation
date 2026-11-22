@@ -6,7 +6,7 @@ import { HydrationMarker } from "@/components/client/hydration-marker";
 import { EMULATOR_ACCOUNT, EMULATOR_ENDPOINT, REGION } from "@/lib/emulator";
 import { regionLabel } from "@/lib/format";
 import { checkHealth } from "@/lib/health";
-import { getTheme } from "@/lib/theme";
+import { getDensity, getTheme } from "@/lib/theme";
 
 const roboto = Roboto({ variable: "--font-roboto", subsets: ["latin"], weight: ["400", "500", "700"] });
 
@@ -16,12 +16,12 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [health, theme] = await Promise.all([checkHealth(), getTheme()]);
+  const [health, theme, density] = await Promise.all([checkHealth(), getTheme(), getDensity()]);
   return (
-    <html lang="en" data-theme={theme} className={`${roboto.variable} antialiased`}>
+    <html lang="en" data-theme={theme} data-density={density} className={`${roboto.variable} antialiased`}>
       <body className="min-h-screen">
         <HydrationMarker />
-        <TopNav region={REGION} regionName={regionLabel(REGION)} account={EMULATOR_ACCOUNT} healthy={health.ok} theme={theme} />
+        <TopNav region={REGION} regionName={regionLabel(REGION)} account={EMULATOR_ACCOUNT} healthy={health.ok} theme={theme} density={density} />
         <div className="pb-9">{children}</div>
         <footer className="fixed inset-x-0 bottom-0 z-40 flex h-9 items-center gap-5 border-t border-line bg-surface px-4 text-xs font-medium text-muted">
           <span className="flex items-center gap-1.5">
