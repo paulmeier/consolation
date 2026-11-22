@@ -9,7 +9,7 @@ import { TableFilter } from "@/components/client/table-filter";
 import { ConfirmAction } from "@/components/client/confirm-action";
 import { ModalButton } from "@/components/client/modal";
 import { Container, EmptyState, ErrorAlert, FormField, Header, Input, LinkButton, RefreshIcon, Select, buttonClass } from "@/components/ui";
-import { createRole, deleteRoles } from "../actions";
+import { createRole, createServiceLinkedRole, deleteRoles } from "../actions";
 
 export const metadata = { title: "Roles | IAM" };
 const FORM = "roles-form";
@@ -47,6 +47,23 @@ async function Roles() {
               <>
                 <LinkButton href="/iam/roles" aria-label="Refresh" className="px-2"><RefreshIcon /></LinkButton>
                 <ConfirmAction formId={FORM} action={deleteRoles} label="Delete" title="Delete role" noun="role" confirmWord="delete" />
+                <ModalButton label="Create service-linked role" title="Create service-linked role">
+                  <form action={createServiceLinkedRole} className="space-y-4">
+                    <FormField label="AWS service" description="The service principal that will use the role.">
+                      <Input name="service" required list="slr-services" placeholder="elasticbeanstalk.amazonaws.com" />
+                    </FormField>
+                    <datalist id="slr-services">
+                      {["autoscaling.amazonaws.com", "ecs.amazonaws.com", "elasticloadbalancing.amazonaws.com", "rds.amazonaws.com", "elasticbeanstalk.amazonaws.com", "spot.amazonaws.com", "lambda.amazonaws.com"].map((s) => <option key={s} value={s} />)}
+                    </datalist>
+                    <FormField label={<>Custom suffix <i className="font-normal text-muted">- optional, for services that allow it</i></>}>
+                      <Input name="suffix" />
+                    </FormField>
+                    <FormField label={<>Description <i className="font-normal text-muted">- optional</i></>}>
+                      <Input name="description" />
+                    </FormField>
+                    <div className="flex justify-end"><button className={buttonClass("primary")}>Create role</button></div>
+                  </form>
+                </ModalButton>
                 <ModalButton label="Create role" title="Create role" variant="primary">
                   <form action={createRole} className="space-y-4">
                     <FormField label="Trusted entity" description="Allow an AWS service to assume this role.">

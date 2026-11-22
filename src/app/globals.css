@@ -149,3 +149,33 @@ th[aria-sort="ascending"]::after {
 th[aria-sort="descending"]::after {
   border-top-color: var(--color-ink);
 }
+
+/*
+ * Compact density (Settings > Appearance). Unlayered, so it wins over the
+ * Tailwind utilities on the same elements.
+ */
+html[data-density="compact"] [data-ctr="header"] {
+  padding-top: 10px;
+  padding-bottom: 8px;
+}
+html[data-density="compact"] [data-ctr="body"] {
+  padding-bottom: 12px;
+}
+html[data-density="compact"] [data-ctr="body-only"] {
+  padding-top: 10px;
+  padding-bottom: 12px;
+}
+html[data-density="compact"] [data-page-stack] {
+  gap: 16px;
+}
+html[data-density="compact"] [data-kv] {
+  row-gap: 8px;
+}
+html[data-density="compact"] table td {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+html[data-density="compact"] table th {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}

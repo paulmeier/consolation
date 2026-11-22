@@ -92,8 +92,8 @@ export function Container({
 }) {
   return (
     <section id={id} className={cx("sel-scope rounded-2xl bg-surface shadow-card", className)}>
-      {header && <div className="px-5 pt-4 pb-3">{header}</div>}
-      {children !== undefined && <div className={cx(!noPadding && "px-5 pb-5", !header && !noPadding && "pt-4")}>{children}</div>}
+      {header && <div data-ctr="header" className="px-5 pt-4 pb-3">{header}</div>}
+      {children !== undefined && <div data-ctr={noPadding ? undefined : header ? "body" : "body-only"} className={cx(!noPadding && "px-5 pb-5", !header && !noPadding && "pt-4")}>{children}</div>}
       {footer && <div className="border-t border-line px-5 py-3 text-center">{footer}</div>}
     </section>
   );
@@ -102,7 +102,7 @@ export function Container({
 export function KeyValue({ items, columns = 3 }: { items: { label: string; value: ReactNode }[]; columns?: 1 | 2 | 3 | 4 }) {
   const cols = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3", 4: "md:grid-cols-4" }[columns];
   return (
-    <dl className={cx("grid grid-cols-1 gap-x-8 gap-y-4", cols)}>
+    <dl data-kv className={cx("grid grid-cols-1 gap-x-8 gap-y-4", cols)}>
       {items.map((it) => (
         <div key={it.label} className="min-w-0">
           <dt className="text-sm font-bold text-muted">{it.label}</dt>

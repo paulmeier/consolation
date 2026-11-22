@@ -32,7 +32,9 @@ import {
   deleteAliases,
   deleteTriggers,
   deployCode,
+  deployImage,
   publishVersion,
+  saveImageConfig,
   removeFunctionPermissions,
   saveDestinations,
   setConcurrency,
@@ -90,13 +92,18 @@ export default async function FunctionPage({ params, searchParams }: PageProps<"
             { label: "Last modified", value: formatDate(cfg.LastModified) },
             { label: "Function ARN", value: <span className="font-mono text-[13px] break-all">{cfg.FunctionArn}</span> },
             { label: "State", value: cfg.State === "Active" ? <StatusIndicator type="success">Active</StatusIndicator> : (cfg.State ?? "-") },
-            { label: "Runtime", value: cfg.Runtime },
+            { label: cfg.PackageType === "Image" ? "Package type" : "Runtime", value: cfg.PackageType === "Image" ? "Image" : cfg.Runtime },
             { label: "Layers", value: cfg.Layers?.length ? cfg.Layers.map((l) => l.Arn?.split(":").slice(-2).join(":")).join(", ") : "-" },
           ]}
         />
       </Container>
       <Tabs base={base} active={tab} tabs={TABS} />
-      {tab === "code" && <CodeTab name={name} location={fn.Code?.Location} runtime={cfg.Runtime} codeSize={cfg.CodeSize} />}
+      {tab === "code" &&
+        (cfg.PackageType === "Image" ? (
+          <ImageTab name={name} uri={fn.Code?.ImageUri} resolved={fn.Code?.ResolvedImageUri} config={cfg.ImageConfigResponse?.ImageConfig} />
+        ) : (
+          <CodeTab name={name} location={fn.Code?.Location} runtime={cfg.Runtime} codeSize={cfg.CodeSize} />
+        ))}
       {tab === "test" && (
         <Container header={<Header info description="Invoke the function in the emulator. Saved events are kept in this browser.">Test event</Header>}>
           <InvokePanel name={name} />
@@ -107,6 +114,72 @@ export default async function FunctionPage({ params, searchParams }: PageProps<"
       {tab === "aliases" && <AliasesTab name={name} />}
       {tab === "triggers" && <TriggersTab name={name} />}
     </Page>
+  );
+}
+
+function ImageTab({ name, uri, resolved, config }: { name: string; uri?: string; resolved?: string; config?: { EntryPoint?: string[]; Command?: string[]; WorkingDirectory?: string } }) {
+  const field = <input type="hidden" name="name" value={name} />;
+  return (
+    <>
+      <Container
+        header={
+          <Header
+            info
+            description="This function is deployed from a container image in Amazon ECR."
+            actions={
+              <ModalButton label="Deploy new image" title="Deploy new image" variant="primary">
+                <form action={deployImage} className="space-y-4">
+                  {field}
+                  <FormField label="Container image URI" description="The emulator checks that the image exists in ECR.">
+                    <Input name="imageUri" required defaultValue={uri} />
+                  </FormField>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="publish" className="accent-accent" /> Publish a new version</label>
+                  <div className="flex justify-end"><button className={buttonClass("primary")}>Save</button></div>
+                </form>
+              </ModalButton>
+            }
+          >
+            Image
+          </Header>
+        }
+      >
+        <KeyValue
+          columns={2}
+          items={[
+            { label: "Image URI", value: <span className="font-mono text-[13px] break-all">{uri ?? "-"}</span> },
+            { label: "Resolved image URI", value: <span className="font-mono text-[13px] break-all">{resolved ?? "-"}</span> },
+          ]}
+        />
+      </Container>
+      <Container
+        header={
+          <Header
+            description="Override the image's ENTRYPOINT, CMD and WORKDIR."
+            actions={
+              <ModalButton label="Edit" title="Image configuration">
+                <form action={saveImageConfig} className="space-y-4">
+                  {field}
+                  <FormField label="ENTRYPOINT" constraint="Comma separated."><Input name="entrypoint" defaultValue={(config?.EntryPoint ?? []).join(", ")} /></FormField>
+                  <FormField label="CMD" constraint="Comma separated, for example app.handler."><Input name="command" defaultValue={(config?.Command ?? []).join(", ")} /></FormField>
+                  <FormField label="WORKDIR"><Input name="workdir" defaultValue={config?.WorkingDirectory ?? ""} /></FormField>
+                  <div className="flex justify-end"><button className={buttonClass("primary")}>Save</button></div>
+                </form>
+              </ModalButton>
+            }
+          >
+            Image configuration
+          </Header>
+        }
+      >
+        <KeyValue
+          items={[
+            { label: "ENTRYPOINT", value: config?.EntryPoint?.join(" ") || "Image default" },
+            { label: "CMD", value: config?.Command?.join(" ") || "Image default" },
+            { label: "WORKDIR", value: config?.WorkingDirectory || "Image default" },
+          ]}
+        />
+      </Container>
+    </>
   );
 }
 

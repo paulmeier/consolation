@@ -7,14 +7,14 @@ A local web console for [AWS Emulator](https://docs.aws.amazon.com/emulator/late
 | Service | What works |
 | --- | --- |
 | Console Home | Recently visited, resource counts, emulator health and caller identity |
-| S3 | Buckets: create, empty, delete. Objects: prefixes, folders, streamed multipart upload with progress, preview, download, versions, copy/move, tags, presigned URLs, pagination. Properties (versioning, tags, encryption, website), permissions (Block Public Access, policy, CORS), lifecycle rules |
-| DynamoDB | Tables with GSIs and deletion protection; Explore items with Scan or Query (indexes, sort-key conditions, pagination) and in-place editing; PartiQL editor; indexes; TTL, point-in-time recovery, tags; backups and restore; streams with a record viewer |
-| Lambda | Functions from templates or .zip, code editor, test invoke with saved events, monitor (recent logs), configuration (env vars, layers, concurrency, async destinations, function URL, resource policy), versions and weighted aliases, triggers (SQS, Kinesis, DynamoDB streams) with automatic role permissions, layers |
-| SQS | Queues: list with message counts, create standard/FIFO, purge, delete. Send, poll and delete messages |
-| SNS | Topics: list, create standard/FIFO, delete. Subscriptions: create, delete. Publish messages |
-| IAM | Users (access keys, attached policies), roles (trust policy, attached policies), customer managed policies |
-| CloudWatch Logs | Log groups, log streams, view and put log events |
-| EC2 | Instances: launch, start, stop, reboot, terminate. Security groups and key pairs |
+| S3 | Buckets: create (with Object Lock), empty (every version), delete. Objects: prefixes, folders, streamed multipart upload with progress, preview, download, versions, copy/move, tags, presigned URLs, retention and legal hold, pagination. Properties (versioning, tags, encryption, event notifications, Object Lock, website), permissions (Block Public Access, policy, CORS), lifecycle, replication and inventory. Access points with policies |
+| DynamoDB | Tables with GSIs and deletion protection; Explore items with Scan or Query (indexes, sort-key conditions, pagination) and in-place editing; PartiQL editor; indexes; monitor (CloudWatch metrics); TTL, point-in-time recovery, tags; backups and restore; exports to S3 and imports from S3; streams with a record viewer |
+| Lambda | Functions from templates, .zip or an ECR container image (deploy new image, ENTRYPOINT/CMD/WORKDIR overrides), code editor, test invoke with saved events, monitor (recent logs), configuration (env vars, layers, concurrency, async destinations, function URL, resource policy), versions and weighted aliases, triggers (SQS, Kinesis, DynamoDB streams) with automatic role permissions, layers |
+| SQS | Queues: create standard/FIFO, edit settings, purge, delete. Send (with message attributes and FIFO deduplication), poll, inspect and delete messages. Dead-letter queues, redrive allow policy and DLQ redrive tasks; access policy and permissions; encryption; tags; Lambda triggers; SNS subscriptions |
+| SNS | Topics: create standard/FIFO, edit, delete; access, delivery and data protection policies; delivery status logging; encryption; tags. Subscriptions: create, confirm, delete, filter policies, raw delivery, redrive policy. Publish with message attributes and per-protocol payloads. Mobile push (platform applications and endpoints) and SMS (sandbox numbers, preferences, opt-outs) |
+| IAM | User groups; users (groups, console password, access keys with activate/deactivate, SSH keys, service-specific credentials, signing certificates); roles (trust policy, session duration, instance profiles, service-linked roles); managed and inline policies, permissions boundaries, policy versions, tags; identity providers (OIDC, SAML); account settings (password policy, alias, STS token version, credential report); an STS playground |
+| CloudWatch Logs | Log groups (retention, KMS key, tags), streams, events with time ranges and paging, search across streams, metric filters with a pattern tester, subscription filters, anomaly detectors, data protection, export to S3, Logs Insights with saved queries, Live Tail |
+| EC2 | Instances: launch (user data, placement group, termination protection), details, state actions, instance type, security groups, storage, tags, EC2 Instance Connect. Launch templates with versions. AMIs, EBS volumes and snapshots, security group rules, Elastic IPs, network interfaces, placement groups, key pairs. Spot requests, Capacity Reservations and Dedicated Hosts (read-only) |
 | CloudWatch metrics | Metrics browser with an SVG chart, publish test data, alarms (create, history, set state, actions), dashboards (text and metric widgets, JSON source) |
 | Secrets Manager | Store secrets (key/value or plaintext), reveal on demand, edit value (versions and staging labels), resource policy, rotation config, scheduled deletion and restore, tags |
 | Systems Manager Parameter Store | String/StringList/SecureString parameters, masked values with decrypt on demand, history and labels, path browsing, tags |
@@ -31,7 +31,7 @@ A local web console for [AWS Emulator](https://docs.aws.amazon.com/emulator/late
 | ECS | Clusters, services (desired count), tasks (run/stop), task definitions (form or JSON) |
 | RDS | Instances and Aurora clusters (create with a Secrets Manager–managed password, stop/start/reboot/delete), snapshots, subnet and parameter groups |
 
-Other entries in the services menu (CloudFormation, VPC, …) open a placeholder page. Every table supports filtering, sorting by column, pagination and a preferences modal (page size, visible columns, wrap lines, striped rows) saved per table.
+Other entries in the services menu (CloudFormation, VPC, …) open a placeholder page. Every table supports filtering, sorting by column, pagination and a preferences modal (page size, visible columns, wrap lines, striped rows) saved per table. Settings > Appearance (or the moon/sun menu) switches between light, dark and browser-default visual modes and comfortable or compact density.
 
 ## Run it
 
@@ -56,7 +56,7 @@ npm run test:e2e                                   # builds and starts the app o
 E2E_BASE_URL=http://127.0.0.1:3000 npm run test:e2e  # reuse a running dev server
 ```
 
-The Playwright suite in `e2e/` needs a running emulator. It creates uniquely named resources and deletes them again.
+The Playwright suite in `e2e/` needs a running emulator. It creates uniquely named resources and deletes them again. `e2e/emulator-sdk.ts` does the little setup the UI can't, such as pushing a minimal container image to ECR for the Lambda image test.
 
 `.github/workflows/ci.yml` runs lint, type-check and build, then builds the emulator image from `docker/aws-emulator/Dockerfile` (latest package, no version pin), starts it on 127.0.0.1 with telemetry off, and runs the end-to-end suite.
 
@@ -76,7 +76,9 @@ Visual mode (Light, Dark or Browser default) is picked from the moon/sun button 
 
 - Some emulator responses carry epoch timestamps with nanosecond precision, which the AWS SDK for JavaScript rejects. `src/lib/emulator.ts` trims them to milliseconds before deserialization.
 - API Gateway stages are called through the emulator with the `<api-id>.execute-api.<region>.amazonaws.com` Host header. Lambda function URLs are served on an internal emulator port, which is not reachable when the emulator runs in Docker with only port 9297 published.
-- EventBridge (v1.0.556) accepted events but did not deliver them to an SQS target in testing.
+- SNS, EventBridge and S3 deliver to an SQS queue only when the queue's access policy allows that service to send from that source, as on AWS; otherwise the emulator logs that the delivery is withheld. Like the console, Consolation adds the statement when you subscribe a queue to a topic, add a queue as a rule target, or save S3 event notifications.
+- EC2 `CreateImage` returns NotImplemented in v1.0.556, so Create image on an instance shows that error. CloudWatch Logs export tasks need a bucket policy for `logs.amazonaws.com`; the export dialog adds it. SNS data protection policies return "not supported in this region".
+- CloudWatch Logs Live Tail works through a Server-Sent Events relay (`/api/logs/tail`). In testing, after several abandoned sessions the emulator stopped answering new `StartLiveTail` calls until it was restarted.
 
 ## How it connects
 

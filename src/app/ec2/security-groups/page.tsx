@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { DescribeSecurityGroupsCommand, DescribeVpcsCommand, type SecurityGroup } from "@aws-sdk/client-ec2";
 import { aws, errorMessage } from "@/lib/emulator";
@@ -69,7 +70,7 @@ async function Groups() {
         rowKey={(g) => g.GroupId!}
         filterText={(g) => `${g.GroupId} ${g.GroupName} ${g.VpcId} ${g.Description}`}
         columns={[
-          { header: "Security group ID", cell: (g) => <span className="font-mono text-[13px]">{g.GroupId}</span> },
+          { header: "Security group ID", cell: (g) => <Link className="font-mono text-[13px] text-accent hover:underline" href={`/ec2/security-groups/${g.GroupId}`}>{g.GroupId}</Link> },
           { header: "Security group name", cell: (g) => g.GroupName },
           { header: "VPC ID", cell: (g) => <span className="font-mono text-[13px]">{g.VpcId ?? "-"}</span> },
           { header: "Description", cell: (g) => g.Description },

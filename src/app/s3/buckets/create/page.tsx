@@ -38,6 +38,14 @@ export default function CreateBucket() {
             <input type="radio" name="versioning" value="on" className="accent-accent" /> Enable
           </label>
         </Container>
+        <Container header={<Header info description="Store objects with a write-once-read-many (WORM) model. Object Lock can only be turned on when the bucket is created, and it turns on versioning.">Object Lock</Header>}>
+          <label className="mr-6 inline-flex items-center gap-2">
+            <input type="radio" name="objectLock" value="off" defaultChecked className="accent-accent" /> Disable
+          </label>
+          <label className="inline-flex items-center gap-2">
+            <input type="radio" name="objectLock" value="on" className="accent-accent" /> Enable
+          </label>
+        </Container>
         <div className="flex justify-end gap-2">
           <LinkButton href="/s3/buckets" variant="link">
             Cancel

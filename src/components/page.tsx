@@ -8,7 +8,7 @@ export async function Page({ children, wide }: { children: ReactNode; wide?: boo
   return (
     <div className={wide ? "max-w-none" : "mx-auto max-w-[1280px]"}>
       <Flashbar initial={flash} />
-      <div className="flex flex-col gap-6">{children}</div>
+      <div data-page-stack className="flex flex-col gap-6">{children}</div>
     </div>
   );
 }

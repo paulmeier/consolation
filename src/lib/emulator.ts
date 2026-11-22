@@ -6,6 +6,7 @@ import { Agent } from "node:https";
 import { connection } from "next/server";
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 import { S3Client } from "@aws-sdk/client-s3";
+import { S3ControlClient } from "@aws-sdk/client-s3-control";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { LambdaClient } from "@aws-sdk/client-lambda";
 import { SQSClient } from "@aws-sdk/client-sqs";
@@ -14,6 +15,7 @@ import { IAMClient } from "@aws-sdk/client-iam";
 import { STSClient } from "@aws-sdk/client-sts";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { EC2Client } from "@aws-sdk/client-ec2";
+import { EC2InstanceConnectClient } from "@aws-sdk/client-ec2-instance-connect";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SSMClient } from "@aws-sdk/client-ssm";
 import { KMSClient } from "@aws-sdk/client-kms";
@@ -111,6 +113,9 @@ function baseConfig() {
     region: REGION,
     endpoint: EMULATOR_ENDPOINT,
     credentials,
+    // Operations such as CloudWatch Logs StartLiveTail prepend a host prefix
+    // ("stream-"), which can't resolve against a loopback IP endpoint.
+    disableHostPrefix: true,
     maxAttempts: 2,
     requestHandler: new NodeHttpHandler({
       httpsAgent: new Agent({ ca, keepAlive: true }),
@@ -158,6 +163,8 @@ export async function aws() {
   const cfg = baseConfig();
   const clients = {
     s3: new S3Client({ ...cfg, forcePathStyle: true }),
+    // S3 Control's endpoint rules put the account ID in the hostname; pin the emulator endpoint.
+    s3control: new S3ControlClient({ ...cfg, endpointProvider: () => ({ url: new URL(EMULATOR_ENDPOINT) }) }),
     dynamodb: new DynamoDBClient(cfg),
     lambda: new LambdaClient(cfg),
     sqs: new SQSClient(cfg),
@@ -166,6 +173,7 @@ export async function aws() {
     sts: new STSClient(cfg),
     logs: new CloudWatchLogsClient(cfg),
     ec2: new EC2Client(cfg),
+    ec2Connect: new EC2InstanceConnectClient(cfg),
     secrets: new SecretsManagerClient(cfg),
     ssm: new SSMClient(cfg),
     kms: new KMSClient(cfg),

@@ -12,6 +12,7 @@ import {
   DeleteConnectionCommand,
   DeleteEventBusCommand,
   DeleteRuleCommand,
+  DescribeRuleCommand,
   DisableRuleCommand,
   EnableRuleCommand,
   ListTargetsByRuleCommand,
@@ -26,6 +27,7 @@ import {
 } from "@aws-sdk/client-eventbridge";
 import { aws, errorMessage } from "@/lib/emulator";
 import { flash } from "@/lib/flash";
+import { allowRuleToSendToQueue } from "@/lib/sqs-policy";
 
 const rp = (bus: string, name: string) => `/eventbridge/rules/${encodeURIComponent(bus)}/${encodeURIComponent(name)}`;
 
@@ -59,7 +61,7 @@ export async function createRule(fd: FormData) {
     const pattern = String(fd.get("pattern") ?? "").trim();
     const schedule = String(fd.get("schedule") ?? "").trim();
     if (kind === "pattern") JSON.parse(pattern);
-    await events.send(
+    const rule = await events.send(
       new PutRuleCommand({
         Name: name,
         EventBusName: bus,
@@ -69,6 +71,7 @@ export async function createRule(fd: FormData) {
       }),
     );
     const target = String(fd.get("target") ?? "").trim();
+    if (target.startsWith("arn:aws:sqs:") && rule.RuleArn) await allowRuleToSendToQueue((await aws()).sqs, target, rule.RuleArn);
     if (target) await events.send(new PutTargetsCommand({ Rule: name, EventBusName: bus, Targets: [{ Id: "target-1", Arn: target }] }));
   } catch (e) {
     await flash("error", `Failed to create rule ${name}. ${errorMessage(e)}`);
@@ -114,9 +117,15 @@ export async function addTarget(fd: FormData) {
   const name = String(fd.get("name"));
   const bus = String(fd.get("bus"));
   const { events } = await aws();
-  await guard("Target added.", rp(bus, name), () => {
+  await guard("Target added.", rp(bus, name), async () => {
     const input = String(fd.get("input") ?? "").trim();
     if (input) JSON.parse(input);
+    const arn = String(fd.get("arn"));
+    if (arn.startsWith("arn:aws:sqs:")) {
+      // Like the console, let the rule send to the queue (otherwise deliveries are withheld).
+      const ruleArn = (await events.send(new DescribeRuleCommand({ Name: name, EventBusName: bus }))).Arn;
+      if (ruleArn) await allowRuleToSendToQueue((await aws()).sqs, arn, ruleArn);
+    }
     return events.send(
       new PutTargetsCommand({
         Rule: name,

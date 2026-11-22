@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES, SERVICES } from "@/lib/services";
 import { ServiceIcon } from "../service-icon";
-import type { Theme } from "@/lib/theme";
+import type { Density, Theme } from "@/lib/theme";
 import { cx } from "../ui";
-import { ThemeChooser, ThemeIcon, useTheme } from "./theme";
+import { DensityChooser, ThemeChooser, ThemeIcon, useTheme } from "./theme";
 
 function useClickAway(onAway: () => void) {
   const ref = useRef<HTMLDivElement>(null);
@@ -35,7 +35,7 @@ function IconButton({ label, children, onClick, active }: { label: string; child
   );
 }
 
-export function TopNav({ region, regionName, account, healthy, theme: initialTheme }: { region: string; regionName: string; account: string; healthy: boolean; theme: Theme }) {
+export function TopNav({ region, regionName, account, healthy, theme: initialTheme, density }: { region: string; regionName: string; account: string; healthy: boolean; theme: Theme; density: Density }) {
   const router = useRouter();
   const [theme] = useTheme(initialTheme);
   const [q, setQ] = useState("");
@@ -179,6 +179,8 @@ export function TopNav({ region, regionName, account, healthy, theme: initialThe
             {menu === "theme" && (
               <div className="absolute top-11 right-0 z-50 w-56 rounded-xl bg-surface p-3 text-sm shadow-pop">
                 <ThemeChooser initial={initialTheme} compact />
+                <div className="my-2 border-t border-line" />
+                <DensityChooser initial={density} compact />
               </div>
             )}
           </div>

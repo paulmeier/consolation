@@ -7,6 +7,7 @@ import {
   DeleteBucketCommand,
   DeleteObjectsCommand,
   ListObjectsV2Command,
+  ListObjectVersionsCommand,
   PutBucketVersioningCommand,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
@@ -32,9 +33,27 @@ import {
   type CORSRule,
   type LifecycleRule,
 } from "@aws-sdk/client-s3";
+import {
+  DeleteBucketInventoryConfigurationCommand,
+  DeleteBucketReplicationCommand,
+  PutBucketInventoryConfigurationCommand,
+  PutBucketNotificationConfigurationCommand,
+  PutBucketReplicationCommand,
+  PutObjectLegalHoldCommand,
+  PutObjectLockConfigurationCommand,
+  PutObjectRetentionCommand,
+  type InventoryFormat,
+  type InventoryOptionalField,
+  type NotificationConfiguration,
+  type ObjectLockRetentionMode,
+  type ReplicationConfiguration,
+} from "@aws-sdk/client-s3";
+import { CreateAccessPointCommand, DeleteAccessPointCommand, DeleteAccessPointPolicyCommand, PutAccessPointPolicyCommand } from "@aws-sdk/client-s3-control";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { aws, errorMessage, REGION } from "@/lib/emulator";
+import { aws, errorMessage, REGION, EMULATOR_ACCOUNT } from "@/lib/emulator";
 import { flash } from "@/lib/flash";
+import { guard, parseJson } from "@/lib/guard";
+import { allowS3ToSendToQueue } from "@/lib/sqs-policy";
 
 function selected(fd: FormData) {
   return fd.getAll("selected").map(String).filter(Boolean);
@@ -47,6 +66,7 @@ export async function createBucket(fd: FormData) {
     await s3.send(
       new CreateBucketCommand({
         Bucket: name,
+        ObjectLockEnabledForBucket: fd.get("objectLock") === "on" || undefined,
         ...(REGION !== "us-east-1" ? { CreateBucketConfiguration: { LocationConstraint: REGION as never } } : {}),
       }),
     );
@@ -61,19 +81,23 @@ export async function createBucket(fd: FormData) {
   redirect("/s3/buckets");
 }
 
+/** Delete every object version and delete marker, as the console's Empty does. */
 async function emptyOne(bucket: string) {
   const { s3 } = await aws();
-  let token: string | undefined;
   let n = 0;
+  let KeyMarker: string | undefined;
+  let VersionIdMarker: string | undefined;
   do {
-    const page = await s3.send(new ListObjectsV2Command({ Bucket: bucket, ContinuationToken: token }));
-    const keys = (page.Contents ?? []).map((o) => ({ Key: o.Key! }));
-    if (keys.length) {
-      await s3.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: keys, Quiet: true } }));
-      n += keys.length;
+    const page = await s3.send(new ListObjectVersionsCommand({ Bucket: bucket, KeyMarker, VersionIdMarker }));
+    const objects = [...(page.Versions ?? []), ...(page.DeleteMarkers ?? [])].map((o) => ({ Key: o.Key!, VersionId: o.VersionId ?? undefined }));
+    if (objects.length) {
+      await s3.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: objects, Quiet: true }, BypassGovernanceRetention: true }));
+      n += objects.length;
     }
-    token = page.IsTruncated ? page.NextContinuationToken : undefined;
-  } while (token);
+    KeyMarker = page.IsTruncated ? page.NextKeyMarker : undefined;
+    VersionIdMarker = page.IsTruncated ? page.NextVersionIdMarker : undefined;
+  } while (KeyMarker);
+  // Unversioned buckets list their objects as versions with VersionId "null", so this covers both.
   return n;
 }
 
@@ -299,4 +323,161 @@ export async function presign(_p: PresignResult, fd: FormData): Promise<PresignR
   } catch (e) {
     return { error: errorMessage(e) };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Event notifications, replication, inventory, Object Lock and access points.
+// ---------------------------------------------------------------------------
+
+const bucketTab = (b: string, tab = "") => `/s3/buckets/${encodeURIComponent(b)}${tab ? `?tab=${tab}` : ""}`;
+
+export async function saveNotifications(fd: FormData) {
+  const bucket = String(fd.get("bucket"));
+  const text = String(fd.get("json") ?? "").trim();
+  await guard(text ? "Event notifications saved." : "Event notifications removed.", bucketTab(bucket, "properties"), async () => {
+    const { s3, sqs } = await aws();
+    const cfg = (text ? parseJson(text, "Notification configuration") : {}) as NotificationConfiguration;
+    if (fd.get("grant") === "on") {
+      // S3 validates that each SQS destination lets s3.amazonaws.com send to it.
+      for (const q of cfg.QueueConfigurations ?? []) await allowS3ToSendToQueue(sqs, q.QueueArn!, bucket);
+    }
+    await s3.send(new PutBucketNotificationConfigurationCommand({ Bucket: bucket, NotificationConfiguration: cfg }));
+  });
+}
+
+export async function saveReplication(fd: FormData) {
+  const bucket = String(fd.get("bucket"));
+  const text = String(fd.get("json") ?? "").trim();
+  await guard(text ? "Replication configuration saved." : "Replication configuration deleted.", bucketTab(bucket, "management"), async () => {
+    const { s3 } = await aws();
+    if (text) await s3.send(new PutBucketReplicationCommand({ Bucket: bucket, ReplicationConfiguration: parseJson(text, "Replication configuration") as ReplicationConfiguration }));
+    else await s3.send(new DeleteBucketReplicationCommand({ Bucket: bucket }));
+  });
+}
+
+export async function saveInventory(fd: FormData) {
+  const bucket = String(fd.get("bucket"));
+  const id = String(fd.get("id")).trim();
+  await guard(`Inventory configuration ${id} saved.`, bucketTab(bucket, "management"), async () => {
+    const { s3 } = await aws();
+    const prefix = String(fd.get("prefix") ?? "").trim();
+    const destPrefix = String(fd.get("destPrefix") ?? "").trim();
+    const fields = fd.getAll("fields").map(String) as InventoryOptionalField[];
+    await s3.send(
+      new PutBucketInventoryConfigurationCommand({
+        Bucket: bucket,
+        Id: id,
+        InventoryConfiguration: {
+          Id: id,
+          IsEnabled: fd.get("enabled") !== "off",
+          IncludedObjectVersions: fd.get("versions") === "All" ? "All" : "Current",
+          Schedule: { Frequency: fd.get("frequency") === "Weekly" ? "Weekly" : "Daily" },
+          ...(prefix ? { Filter: { Prefix: prefix } } : {}),
+          ...(fields.length ? { OptionalFields: fields } : {}),
+          Destination: {
+            S3BucketDestination: {
+              Bucket: `arn:aws:s3:::${String(fd.get("destination")).trim()}`,
+              Format: (String(fd.get("format") || "CSV")) as InventoryFormat,
+              ...(destPrefix ? { Prefix: destPrefix } : {}),
+            },
+          },
+        },
+      }),
+    );
+  });
+}
+
+export async function deleteInventories(fd: FormData) {
+  const bucket = String(fd.get("bucket"));
+  await guard("Inventory configuration deleted.", bucketTab(bucket, "management"), async () => {
+    const { s3 } = await aws();
+    for (const id of fd.getAll("selected").map(String)) await s3.send(new DeleteBucketInventoryConfigurationCommand({ Bucket: bucket, Id: id }));
+  });
+}
+
+export async function saveObjectLock(fd: FormData) {
+  const bucket = String(fd.get("bucket"));
+  const mode = String(fd.get("mode") ?? "");
+  await guard("Object Lock settings saved.", bucketTab(bucket, "properties"), async () => {
+    const { s3 } = await aws();
+    const period = Number(fd.get("period") || 1);
+    await s3.send(
+      new PutObjectLockConfigurationCommand({
+        Bucket: bucket,
+        ObjectLockConfiguration: {
+          ObjectLockEnabled: "Enabled",
+          ...(mode ? { Rule: { DefaultRetention: { Mode: mode as ObjectLockRetentionMode, ...(fd.get("unit") === "Years" ? { Years: period } : { Days: period }) } } } : {}),
+        },
+      }),
+    );
+  });
+}
+
+export async function saveObjectRetention(fd: FormData) {
+  const bucket = String(fd.get("bucket"));
+  const key = String(fd.get("key"));
+  const path = `/s3/buckets/${encodeURIComponent(bucket)}/object?key=${encodeURIComponent(key)}`;
+  await guard("Object Lock retention saved.", path, async () => {
+    const { s3 } = await aws();
+    const mode = String(fd.get("mode") ?? "");
+    const until = String(fd.get("until") ?? "");
+    await s3.send(
+      new PutObjectRetentionCommand({
+        Bucket: bucket,
+        Key: key,
+        VersionId: String(fd.get("versionId") ?? "") || undefined,
+        BypassGovernanceRetention: fd.get("bypass") === "on",
+        Retention: mode ? { Mode: mode as ObjectLockRetentionMode, RetainUntilDate: new Date(until) } : {},
+      }),
+    );
+  });
+}
+
+export async function setLegalHold(fd: FormData) {
+  const bucket = String(fd.get("bucket"));
+  const key = String(fd.get("key"));
+  const on = fd.get("on") === "true";
+  const path = `/s3/buckets/${encodeURIComponent(bucket)}/object?key=${encodeURIComponent(key)}`;
+  await guard(`Legal hold ${on ? "enabled" : "disabled"}.`, path, async () => {
+    const { s3 } = await aws();
+    await s3.send(new PutObjectLegalHoldCommand({ Bucket: bucket, Key: key, VersionId: String(fd.get("versionId") ?? "") || undefined, LegalHold: { Status: on ? "ON" : "OFF" } }));
+  });
+}
+
+const AP = "/s3/access-points";
+
+export async function createAccessPoint(fd: FormData) {
+  const name = String(fd.get("name")).trim();
+  await guard(`Access point ${name} created.`, AP, async () => {
+    const { s3control } = await aws();
+    const vpc = String(fd.get("vpc") ?? "").trim();
+    await s3control.send(
+      new CreateAccessPointCommand({
+        AccountId: EMULATOR_ACCOUNT,
+        Name: name,
+        Bucket: String(fd.get("bucket")),
+        ...(vpc ? { VpcConfiguration: { VpcId: vpc } } : {}),
+      }),
+    );
+  });
+}
+
+export async function deleteAccessPoints(fd: FormData) {
+  await guard("Access point deleted.", AP, async () => {
+    const { s3control } = await aws();
+    for (const n of fd.getAll("selected").map(String)) await s3control.send(new DeleteAccessPointCommand({ AccountId: EMULATOR_ACCOUNT, Name: n }));
+  });
+  if (fd.get("redirect")) redirect(AP);
+}
+
+export async function saveAccessPointPolicy(fd: FormData) {
+  const name = String(fd.get("name"));
+  const text = String(fd.get("json") ?? "").trim();
+  await guard(text ? "Access point policy saved." : "Access point policy deleted.", `${AP}/${encodeURIComponent(name)}`, async () => {
+    const { s3control } = await aws();
+    if (text) {
+      parseJson(text, "Access point policy");
+      await s3control.send(new PutAccessPointPolicyCommand({ AccountId: EMULATOR_ACCOUNT, Name: name, Policy: text }));
+    } else await s3control.send(new DeleteAccessPointPolicyCommand({ AccountId: EMULATOR_ACCOUNT, Name: name }));
+  });
 }

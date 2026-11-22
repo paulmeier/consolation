@@ -10,6 +10,10 @@ import {
   GetBucketVersioningCommand,
   GetBucketWebsiteCommand,
   GetPublicAccessBlockCommand,
+  GetBucketNotificationConfigurationCommand,
+  GetBucketReplicationCommand,
+  GetObjectLockConfigurationCommand,
+  ListBucketInventoryConfigurationsCommand,
   ListObjectsV2Command,
   ListObjectVersionsCommand,
   type _Object,
@@ -23,7 +27,22 @@ import { TableFilter } from "@/components/client/table-filter";
 import { ConfirmAction } from "@/components/client/confirm-action";
 import { ModalButton } from "@/components/client/modal";
 import { Badge, Container, EmptyState, ErrorAlert, FormField, Header, Input, KeyValue, LinkButton, RefreshIcon, Select, StatusIndicator, Textarea, buttonClass } from "@/components/ui";
-import { createFolder, deleteObjects, deleteVersions, saveBucketJson, saveBucketTags, saveEncryption, savePublicAccessBlock, saveWebsite, setVersioning } from "../../actions";
+import {
+  createFolder,
+  deleteInventories,
+  deleteObjects,
+  deleteVersions,
+  saveBucketJson,
+  saveBucketTags,
+  saveEncryption,
+  saveInventory,
+  saveNotifications,
+  saveObjectLock,
+  savePublicAccessBlock,
+  saveReplication,
+  saveWebsite,
+  setVersioning,
+} from "../../actions";
 import { UploadPanel } from "../../upload-panel";
 
 const FORM = "objects-form";
@@ -192,13 +211,24 @@ async function Objects({ bucket, prefix, token, versions }: { bucket: string; pr
 
 async function Properties({ bucket }: { bucket: string }) {
   const { s3 } = await aws();
-  const [loc, ver, tags, enc, web] = await Promise.all([
+  const [loc, ver, tags, enc, web, notif, lock] = await Promise.all([
     safe(s3.send(new GetBucketLocationCommand({ Bucket: bucket }))),
     safe(s3.send(new GetBucketVersioningCommand({ Bucket: bucket }))),
     safe(s3.send(new GetBucketTaggingCommand({ Bucket: bucket }))),
     safe(s3.send(new GetBucketEncryptionCommand({ Bucket: bucket }))),
     safe(s3.send(new GetBucketWebsiteCommand({ Bucket: bucket }))),
+    safe(s3.send(new GetBucketNotificationConfigurationCommand({ Bucket: bucket }))),
+    safe(s3.send(new GetObjectLockConfigurationCommand({ Bucket: bucket }))),
   ]);
+  const notifications = [
+    ...(notif?.QueueConfigurations ?? []).map((c) => ({ id: c.Id, type: "SQS queue", dest: c.QueueArn, events: c.Events })),
+    ...(notif?.TopicConfigurations ?? []).map((c) => ({ id: c.Id, type: "SNS topic", dest: c.TopicArn, events: c.Events })),
+    ...(notif?.LambdaFunctionConfigurations ?? []).map((c) => ({ id: c.Id, type: "Lambda function", dest: c.LambdaFunctionArn, events: c.Events })),
+    ...(notif?.EventBridgeConfiguration ? [{ id: "EventBridge", type: "Amazon EventBridge", dest: "default event bus", events: ["All events"] }] : []),
+  ];
+  const notifJson = notif ? pretty({ QueueConfigurations: notif.QueueConfigurations, TopicConfigurations: notif.TopicConfigurations, LambdaFunctionConfigurations: notif.LambdaFunctionConfigurations, EventBridgeConfiguration: notif.EventBridgeConfiguration }) : "";
+  const notifSample = pretty({ QueueConfigurations: [{ Id: "new-objects", QueueArn: `arn:aws:sqs:${REGION}:000000000000:my-queue`, Events: ["s3:ObjectCreated:*"], Filter: { Key: { FilterRules: [{ Name: "prefix", Value: "uploads/" }] } } }] });
+  const lockRule = lock?.ObjectLockConfiguration?.Rule?.DefaultRetention;
   const region = loc?.LocationConstraint || REGION;
   const versioning = ver?.Status ?? "Disabled";
   const rule = enc?.ServerSideEncryptionConfiguration?.Rules?.[0]?.ApplyServerSideEncryptionByDefault;
@@ -241,6 +271,88 @@ async function Properties({ bucket }: { bucket: string }) {
           <FormField label="KMS key (SSE-KMS)"><Input name="kmsKey" defaultValue={rule?.KMSMasterKeyID ?? ""} placeholder="arn:aws:kms:… or alias/…" /></FormField>
           <div className="flex justify-end"><button className={buttonClass("normal")}>Save changes</button></div>
         </form>
+      </Container>
+      <Container
+        noPadding
+        header={
+          <Header
+            counter={notifications.length}
+            info
+            description="Send a message to SQS, SNS, Lambda or EventBridge when objects are created, deleted or restored."
+            actions={
+              <ModalButton label="Edit event notifications" title="Event notifications" size="lg">
+                <form action={saveNotifications} className="space-y-3">
+                  {hidden}
+                  <p className="text-sm text-muted">The bucket&apos;s whole notification configuration as JSON. Empty and save to remove all notifications.</p>
+                  <Textarea name="json" rows={14} spellCheck={false} defaultValue={notifJson === "{}" ? notifSample : notifJson || notifSample} />
+                  <label className="flex items-start gap-2 text-sm">
+                    <input type="checkbox" name="grant" defaultChecked className="mt-1 accent-accent" />
+                    <span>Update each SQS destination&apos;s access policy so this bucket can send to it. S3 checks this when you save.</span>
+                  </label>
+                  <div className="flex justify-end"><button className={buttonClass("primary")}>Save changes</button></div>
+                </form>
+              </ModalButton>
+            }
+          >
+            Event notifications
+          </Header>
+        }
+      >
+        <Table
+          rows={notifications}
+          rowKey={(n) => `${n.type}:${n.id}:${n.dest}`}
+          columns={[
+            { header: "Name", cell: (n) => n.id ?? "-" },
+            { header: "Event types", cell: (n) => (n.events ?? []).join(", ") },
+            { header: "Destination type", cell: (n) => n.type },
+            { header: "Destination", cell: (n) => <span className="font-mono text-[13px] break-all">{n.dest}</span> },
+          ]}
+          empty={<EmptyState title="No event notifications" />}
+        />
+      </Container>
+      <Container
+        header={
+          <Header
+            info
+            description="Prevent objects from being deleted or overwritten for a fixed time or indefinitely."
+            actions={
+              lock && (
+                <ModalButton label="Edit" title="Object Lock default retention">
+                  <form action={saveObjectLock} className="space-y-4">
+                    {hidden}
+                    <FormField label="Default retention mode">
+                      <Select name="mode" defaultValue={lockRule?.Mode ?? ""}>
+                        <option value="">No default retention</option>
+                        <option value="GOVERNANCE">Governance</option>
+                        <option value="COMPLIANCE">Compliance</option>
+                      </Select>
+                    </FormField>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField label="Retention period"><Input name="period" type="number" min={1} defaultValue={String(lockRule?.Days ?? lockRule?.Years ?? 1)} /></FormField>
+                      <FormField label="Unit">
+                        <Select name="unit" defaultValue={lockRule?.Years ? "Years" : "Days"}>
+                          <option>Days</option>
+                          <option>Years</option>
+                        </Select>
+                      </FormField>
+                    </div>
+                    <div className="flex justify-end"><button className={buttonClass("primary")}>Save changes</button></div>
+                  </form>
+                </ModalButton>
+              )
+            }
+          >
+            Object Lock
+          </Header>
+        }
+      >
+        <KeyValue
+          items={[
+            { label: "Object Lock", value: lock ? <StatusIndicator type="success">Enabled</StatusIndicator> : "Disabled (can only be turned on when the bucket is created)" },
+            { label: "Default retention mode", value: lockRule?.Mode ?? "-" },
+            { label: "Default retention period", value: lockRule?.Days ? `${lockRule.Days} days` : lockRule?.Years ? `${lockRule.Years} years` : "-" },
+          ]}
+        />
       </Container>
       <Container header={<Header info>Static website hosting</Header>}>
         <form action={saveWebsite} className="space-y-4">
@@ -307,8 +419,18 @@ async function Permissions({ bucket }: { bucket: string }) {
 
 async function Management({ bucket }: { bucket: string }) {
   const { s3 } = await aws();
-  const lc = await safe(s3.send(new GetBucketLifecycleConfigurationCommand({ Bucket: bucket })));
+  const [lc, repl, inv] = await Promise.all([
+    safe(s3.send(new GetBucketLifecycleConfigurationCommand({ Bucket: bucket }))),
+    safe(s3.send(new GetBucketReplicationCommand({ Bucket: bucket }))),
+    safe(s3.send(new ListBucketInventoryConfigurationsCommand({ Bucket: bucket }))),
+  ]);
   const sample = pretty([{ ID: "expire-tmp", Status: "Enabled", Filter: { Prefix: "tmp/" }, Expiration: { Days: 7 } }]);
+  const replSample = pretty({
+    Role: "arn:aws:iam::000000000000:role/s3-replication",
+    Rules: [{ ID: "replicate-all", Status: "Enabled", Priority: 1, Filter: {}, DeleteMarkerReplication: { Status: "Disabled" }, Destination: { Bucket: "arn:aws:s3:::destination-bucket" } }],
+  });
+  const hidden = <input type="hidden" name="bucket" value={bucket} />;
+  const inventories = inv?.InventoryConfigurationList ?? [];
   return (
     <>
       <Container noPadding header={<Header counter={lc?.Rules?.length ?? 0}>Lifecycle rules</Header>}>
@@ -326,6 +448,98 @@ async function Management({ bucket }: { bucket: string }) {
         />
       </Container>
       <JsonEditor bucket={bucket} kind="lifecycle" title="Edit lifecycle rules" description="A JSON array of lifecycle rules." value={pretty(lc?.Rules) || sample} placeholder={sample} />
+      <Container
+        noPadding
+        header={
+          <Header
+            counter={repl?.ReplicationConfiguration?.Rules?.length ?? 0}
+            info
+            description="Copy objects to another bucket automatically. Both buckets need versioning enabled."
+            actions={
+              <ModalButton label="Edit replication" title="Replication configuration" size="lg">
+                <form action={saveReplication} className="space-y-3">
+                  {hidden}
+                  <p className="text-sm text-muted">Empty and save to delete the configuration.</p>
+                  <Textarea name="json" rows={14} spellCheck={false} defaultValue={repl?.ReplicationConfiguration ? pretty(repl.ReplicationConfiguration) : replSample} />
+                  <div className="flex justify-end"><button className={buttonClass("primary")}>Save changes</button></div>
+                </form>
+              </ModalButton>
+            }
+          >
+            Replication rules
+          </Header>
+        }
+      >
+        <Table
+          rows={repl?.ReplicationConfiguration?.Rules ?? []}
+          rowKey={(r) => r.ID ?? JSON.stringify(r)}
+          columns={[
+            { header: "Replication rule name", cell: (r) => r.ID ?? "-" },
+            { header: "Status", cell: (r) => r.Status },
+            { header: "Destination bucket", cell: (r) => r.Destination?.Bucket?.replace("arn:aws:s3:::", "") },
+            { header: "Priority", cell: (r) => r.Priority ?? "-" },
+            { header: "Scope", cell: (r) => (r.Filter?.Prefix ? `Prefix ${r.Filter.Prefix}` : "Entire bucket") },
+            { header: "Storage class", cell: (r) => r.Destination?.StorageClass ?? "Same as source" },
+          ]}
+          empty={<EmptyState title="No replication rules" />}
+        />
+      </Container>
+      <Container
+        noPadding
+        header={
+          <Header
+            counter={inventories.length}
+            info
+            description="Scheduled reports listing the objects in the bucket and their metadata."
+            actions={
+              <>
+                <ConfirmAction formId="inv-form" action={deleteInventories} extra={{ bucket }} label="Delete" title="Delete inventory configuration" noun="inventory configuration" />
+                <ModalButton label="Create inventory configuration" title="Create inventory configuration">
+                  <form action={saveInventory} className="space-y-4">
+                    {hidden}
+                    <FormField label="Inventory configuration name"><Input name="id" required pattern="[\w.\-]{1,64}" /></FormField>
+                    <FormField label={<>Prefix <i className="font-normal text-muted">- optional</i></>}><Input name="prefix" /></FormField>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField label="Destination bucket"><Input name="destination" required /></FormField>
+                      <FormField label={<>Destination prefix <i className="font-normal text-muted">- optional</i></>}><Input name="destPrefix" /></FormField>
+                      <FormField label="Frequency"><Select name="frequency" defaultValue="Daily"><option>Daily</option><option>Weekly</option></Select></FormField>
+                      <FormField label="Output format"><Select name="format" defaultValue="CSV"><option>CSV</option><option>ORC</option><option>Parquet</option></Select></FormField>
+                      <FormField label="Object versions"><Select name="versions" defaultValue="Current"><option value="Current">Current version only</option><option value="All">Include all versions</option></Select></FormField>
+                      <FormField label="Status"><Select name="enabled" defaultValue="on"><option value="on">Enable</option><option value="off">Disable</option></Select></FormField>
+                    </div>
+                    <fieldset>
+                      <legend className="mb-1 text-sm font-bold">Additional metadata fields</legend>
+                      {["Size", "LastModifiedDate", "StorageClass", "ETag", "EncryptionStatus", "ObjectLockMode"].map((f) => (
+                        <label key={f} className="mr-4 inline-flex items-center gap-1.5 text-sm"><input type="checkbox" name="fields" value={f} defaultChecked={f === "Size" || f === "LastModifiedDate"} className="accent-accent" /> {f}</label>
+                      ))}
+                    </fieldset>
+                    <div className="flex justify-end"><button className={buttonClass("primary")}>Create</button></div>
+                  </form>
+                </ModalButton>
+              </>
+            }
+          >
+            Inventory configurations
+          </Header>
+        }
+      >
+        <form id="inv-form" />
+        <Table
+          formId="inv-form"
+          selection="multi"
+          rows={inventories}
+          rowKey={(i) => i.Id!}
+          columns={[
+            { header: "Name", cell: (i) => i.Id },
+            { header: "Status", cell: (i) => (i.IsEnabled ? "Enabled" : "Disabled") },
+            { header: "Scope", cell: (i) => (i.Filter?.Prefix ? `Prefix ${i.Filter.Prefix}` : "Entire bucket") },
+            { header: "Destination", cell: (i) => `s3://${i.Destination?.S3BucketDestination?.Bucket?.replace("arn:aws:s3:::", "")}/${i.Destination?.S3BucketDestination?.Prefix ?? ""}` },
+            { header: "Frequency", cell: (i) => i.Schedule?.Frequency },
+            { header: "Format", cell: (i) => i.Destination?.S3BucketDestination?.Format },
+          ]}
+          empty={<EmptyState title="No inventory configurations" />}
+        />
+      </Container>
     </>
   );
 }

@@ -1,26 +1,31 @@
-import { DescribeImagesCommand, DescribeKeyPairsCommand, DescribeSecurityGroupsCommand, type Image } from "@aws-sdk/client-ec2";
+import { DescribeImagesCommand, DescribeKeyPairsCommand, DescribePlacementGroupsCommand, DescribeSecurityGroupsCommand, type Image } from "@aws-sdk/client-ec2";
 import { aws, errorMessage } from "@/lib/emulator";
 import { Page } from "@/components/page";
-import { Container, ErrorAlert, FormField, Header, Input, LinkButton, Select, buttonClass } from "@/components/ui";
+import { Container, ErrorAlert, FormField, Header, Input, LinkButton, Select, Textarea, buttonClass } from "@/components/ui";
 import { launchInstance } from "../../actions";
 
 export const metadata = { title: "Launch an instance | EC2" };
 
 const TYPES = ["t2.micro", "t3.micro", "t3.small", "t3.medium", "m5.large", "c5.large", "r5.large"];
 
-export default async function Launch() {
+export default async function Launch({ searchParams }: PageProps<"/ec2/instances/launch">) {
+  const preselect = (await searchParams).ami;
+  let placement: string[] = [];
   let images: Image[] = [];
   let keys: string[] = [];
   let groups: { id: string; name: string }[] = [];
   let error: string | null = null;
   try {
     const { ec2 } = await aws();
-    const [img, kp, sg] = await Promise.all([
+    const [img, own, kp, sg, pg] = await Promise.all([
       ec2.send(new DescribeImagesCommand({ Owners: ["amazon"], MaxResults: 50 })),
+      ec2.send(new DescribeImagesCommand({ Owners: ["self"] })).catch(() => ({ Images: [] })),
       ec2.send(new DescribeKeyPairsCommand({})),
       ec2.send(new DescribeSecurityGroupsCommand({})),
+      ec2.send(new DescribePlacementGroupsCommand({})).catch(() => ({ PlacementGroups: [] })),
     ]);
-    images = img.Images ?? [];
+    images = [...(own.Images ?? []), ...(img.Images ?? [])];
+    placement = (pg.PlacementGroups ?? []).map((g) => g.GroupName!);
     keys = (kp.KeyPairs ?? []).map((k) => k.KeyName!);
     groups = (sg.SecurityGroups ?? []).map((g) => ({ id: g.GroupId!, name: g.GroupName! }));
   } catch (e) {
@@ -40,10 +45,10 @@ export default async function Launch() {
         </Container>
         <Container header={<Header info>Application and OS Images (Amazon Machine Image)</Header>}>
           <FormField label="Amazon Machine Image (AMI)">
-            <Select name="ami" required>
+            <Select name="ami" required defaultValue={typeof preselect === "string" ? preselect : undefined}>
               {images.map((i) => (
                 <option key={i.ImageId} value={i.ImageId}>
-                  {i.Name ?? i.Description ?? i.ImageId} ({i.ImageId})
+                  {i.OwnerId === "000000000000" ? "My AMI: " : ""}{i.Name ?? i.Description ?? i.ImageId} ({i.ImageId})
                 </option>
               ))}
             </Select>
@@ -76,6 +81,27 @@ export default async function Launch() {
               {groups.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.id})</option>)}
             </Select>
           </FormField>
+        </Container>
+        <Container header={<Header info>Advanced details</Header>}>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <FormField label="Placement group">
+              <Select name="placement" defaultValue="">
+                <option value="">None</option>
+                {placement.map((g) => <option key={g}>{g}</option>)}
+              </Select>
+            </FormField>
+            <FormField label="Termination protection">
+              <Select name="protect" defaultValue="off">
+                <option value="off">Disable</option>
+                <option value="on">Enable</option>
+              </Select>
+            </FormField>
+          </div>
+          <div className="mt-5">
+            <FormField label={<>User data <i className="font-normal text-muted">- optional</i></>} description="A script or cloud-init config. Stored with the instance; the emulator does not run it.">
+              <Textarea name="userData" rows={6} placeholder={"#!/bin/bash\nyum update -y"} />
+            </FormField>
+          </div>
         </Container>
         <div className="flex justify-end gap-2">
           <LinkButton href="/ec2/instances" variant="link">Cancel</LinkButton>
